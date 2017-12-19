@@ -42,9 +42,7 @@ static unsigned char *orig_buf, *buf;
 
 -(void)drawRect:(NSRect)dirtyRect {
   NSRect bounds = [self bounds];
-  if (buf)
-    free(buf);
-  buf = (unsigned char*)malloc(bounds.size.width * bounds.size.height * 4);
+  buf = realloc(buf, bounds.size.width * bounds.size.height * 4);
   stbir_resize_uint8(orig_buf, w, h, 0, buf, bounds.size.width, bounds.size.height, 0, 4);
   
   CGContextRef ctx = [[NSGraphicsContext currentContext] graphicsPort];
@@ -68,6 +66,8 @@ int main(int argc, const char * argv[]) {
     printf("stbi_load() failed: %s\n", stbi_failure_reason());
     return 1;
   }
+  buf = malloc(w * h * 4);
+  memcpy(buf, orig_buf, w * h * 4);
   
   @autoreleasepool {
     [NSApplication sharedApplication];
