@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		88DC5A551FE8F48100425BDA /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 88DC5A541FE8F48100425BDA /* main.c */; };
+		88DC5A5E1FE9003E00425BDA /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 88DC5A5C1FE9003E00425BDA /* main.c */; settings = {COMPILER_FLAGS = "-x objective-c"; }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -24,7 +24,9 @@
 
 /* Begin PBXFileReference section */
 		88DC5A511FE8F48100425BDA /* meh */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = meh; sourceTree = BUILT_PRODUCTS_DIR; };
-		88DC5A541FE8F48100425BDA /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
+		88DC5A5C1FE9003E00425BDA /* main.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = SOURCE_ROOT; };
+		88DC5A5D1FE9003E00425BDA /* stb_image.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stb_image.h; sourceTree = SOURCE_ROOT; };
+		88DC5A5F1FE9008200425BDA /* stb_image_resize.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = stb_image_resize.h; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -57,7 +59,9 @@
 		88DC5A531FE8F48100425BDA /* meh */ = {
 			isa = PBXGroup;
 			children = (
-				88DC5A541FE8F48100425BDA /* main.c */,
+				88DC5A5C1FE9003E00425BDA /* main.c */,
+				88DC5A5D1FE9003E00425BDA /* stb_image.h */,
+				88DC5A5F1FE9008200425BDA /* stb_image_resize.h */,
 			);
 			path = meh;
 			sourceTree = "<group>";
@@ -119,7 +123,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				88DC5A551FE8F48100425BDA /* main.c in Sources */,
+				88DC5A5E1FE9003E00425BDA /* main.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
