@@ -7,11 +7,13 @@
 //
 
 static int w, h, c;
-static unsigned char* buf;
+static unsigned char *orig_buf, *buf;
 
 #include <stdio.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#include "stb_image_resize.h"
 #import <Foundation/Foundation.h>
 #import <Cocoa/Cocoa.h>
 
@@ -39,24 +41,30 @@ static unsigned char* buf;
 }
 
 -(void)drawRect:(NSRect)dirtyRect {
+  NSRect bounds = [self bounds];
+  if (buf)
+    free(buf);
+  buf = (unsigned char*)malloc(bounds.size.width * bounds.size.height * 4);
+  stbir_resize_uint8(orig_buf, w, h, 0, buf, bounds.size.width, bounds.size.height, 0, 4);
+  
   CGContextRef ctx = [[NSGraphicsContext currentContext] graphicsPort];
   
   CGColorSpaceRef s = CGColorSpaceCreateDeviceRGB();
-  CGDataProviderRef p = CGDataProviderCreateWithData(NULL, buf, w * h * c, NULL);
-  CGImageRef img = CGImageCreate(w, h, 8, 32, w * 4, s, kCGBitmapByteOrderDefault, p, NULL, false, kCGRenderingIntentDefault);
+  CGDataProviderRef p = CGDataProviderCreateWithData(NULL, buf, bounds.size.width * bounds.size.height * c, NULL);
+  CGImageRef img = CGImageCreate(bounds.size.width, bounds.size.height, 8, 32, bounds.size.width * 4, s, kCGBitmapByteOrderDefault, p, NULL, false, kCGRenderingIntentDefault);
   
   CGColorSpaceRelease(s);
   CGDataProviderRelease(p);
   
-  CGContextDrawImage(ctx, CGRectMake(0, 0, w, h), img);
+  CGContextDrawImage(ctx, CGRectMake(0, 0, bounds.size.width, bounds.size.height), img);
   
   CGImageRelease(img);
 }
 @end
 
 int main(int argc, const char * argv[]) {
-  buf = stbi_load("/Users/roryb/Pictures/40e4bfd8f20f5f370f1125dbea504b5859ab6884bde4b59a3044c2c4f64feb12.jpg", &w, &h, &c, 4);
-  if (!buf) {
+  orig_buf = stbi_load("/Users/roryb/Pictures/40e4bfd8f20f5f370f1125dbea504b5859ab6884bde4b59a3044c2c4f64feb12.jpg", &w, &h, &c, 4);
+  if (!orig_buf) {
     printf("stbi_load() failed: %s\n", stbi_failure_reason());
     return 1;
   }
