@@ -15,7 +15,6 @@
  *  - EXIF info
  *  - Slideshow
  *  - Handle alpha
- *  - Replace stb_image with ImageMagick
  */
 
 #include <stdio.h>
@@ -26,8 +25,65 @@
 #import <Foundation/Foundation.h>
 #import <Cocoa/Cocoa.h>
 
-size_t w, h, c;
-static char* buf;
+static const char* valid_exts[15] = {
+  ".jpg", ".jpeg", ".png",
+  ".bmp", ".tga",  ".psd",
+  ".gif", ".hdr",  ".pic",
+  ".pnm", ".pgm",  ".tiff",
+  ".tga", ".raw",  ".svg"
+};
+
+typedef struct {
+  MagickWand* mw;
+  size_t w, h;
+  unsigned char* buf;
+  char* path;
+} image_t;
+
+#define BPP 4
+
+#define FREE_IMG \
+if (img) { \
+  img->mw = DestroyMagickWand(img->mw); \
+  free(img->buf); \
+  free(img->path); \
+  free(img); \
+}
+
+image_t* load_img(const char* path) {
+  image_t* img = malloc(sizeof(image_t));
+  if (!img) {
+    fprintf(stderr, "malloc() failed: out of memory\n");
+    [NSApp terminate:nil];
+  }
+  MagickWand* wand = NewMagickWand();
+  if (MagickReadImage(wand, path) == MagickFalse) {
+    fprintf(stderr, "MagickReadImage(%s) failed: %s\n", path, MagickGetException(wand, NULL));
+    return NULL;
+  }
+  img->mw = wand;
+  img->w = MagickGetImageWidth(wand);
+  img->h = MagickGetImageHeight(wand);
+  img->buf = malloc(img->w * img->h * BPP);
+  if (!img->buf) {
+    fprintf(stderr, "malloc() failed: out of memory\n");
+    [NSApp terminate:nil];
+  }
+  img->path = strdup(path);
+  if (MagickExportImagePixels(wand, 0, 0, img->w, img->h, "RGBA", CharPixel, img->buf) == MagickFalse) {
+    fprintf(stderr, "MagickExportImagePixels() failed: %s\n", MagickGetException(wand, NULL));
+    return NULL;
+  }
+  return img;
+}
+
+static int sort_strcmp(const void* a, const void* b) {
+  return strcmp(*(const char**)a, *(const char**)b);
+}
+
+void sort(const char* arr[], int n) {
+  qsort(arr, n, sizeof(const char*), sort_strcmp);
+}
 
 #if defined(MEH_ANIMATE_RESIZE)
 static BOOL animate_window = YES;
@@ -45,12 +101,60 @@ static BOOL animate_window = NO;
 }
 @end
 
-@interface AppView : NSView {}
+@interface AppView : NSView {
+  image_t* img;
+  char* dir;
+  char** dir_imgs;
+  int dir_imgs_len, img_pos;
+}
+
+-(void)populate_dir_imgs;
 @end
 
 @implementation AppView
--(id)initWithFrame:(NSRect)frame {
-  if (self = [super initWithFrame:frame]) {}
+-(void)populate_dir_imgs {
+  DIR* d = opendir(self->dir);
+  if (!d)
+    return;
+  
+  dir_imgs = malloc(1024 * sizeof(char*));
+  if (!dir_imgs) {
+    fprintf(stderr, "malloc() failed: out of memory\n");
+    [NSApp terminate:nil];
+  }
+  
+  int i = 0, j = 0, k = 1024;
+  struct dirent* dir;
+  while ((dir = readdir(d)) != NULL) {
+    if (dir->d_type == DT_REG) {
+      char* ext = strrchr(dir->d_name, '.');
+      if (!ext)
+        continue;
+      for (char* p = ext; *p; ++p)
+        *p = tolower(*p);
+      for (i = 0; i < 15; ++i) {
+        if (strcmp(ext, valid_exts[i]) == 0) {
+          dir_imgs[j] = malloc(strlen(dir->d_name));
+          strcpy(dir_imgs[j], dir->d_name);
+          j += 1;
+          if (j == k) {
+            k += 1024;
+            dir_imgs = realloc(dir_imgs, k * sizeof(char*));
+          }
+          break;
+        }
+      }
+    }
+  }
+  sort((const char**)dir_imgs, j);
+  dir_imgs_len = j;
+  closedir(d);
+}
+
+-(id)initWithFrame:(NSRect)frame Image:(image_t*)img {
+  if (self = [super initWithFrame:frame]) {
+    self->img = img;
+  }
   return self;
 }
 
@@ -58,14 +162,54 @@ static BOOL animate_window = NO;
   return YES;
 }
 
--(void)keyDown:(NSEvent *)event {
+-(void)keyDown:(NSEvent*)event {
+  (void)event;
 }
 
--(void)keyUp:(NSEvent *)event {
+-(void)keyUp:(NSEvent*)event {
   switch ([event keyCode]) {
     case 0x35: // ESC
     case 0x0C: // Q
       [[self window] close];
+      break;
+    case 0x26: // J
+    case 0x28: // K
+      if (!dir_imgs) {
+        self->dir = dirname(img->path);
+        [self populate_dir_imgs];
+        
+        char* tmp = basename(img->path);
+        for (int i = 0; i < dir_imgs_len; ++i) {
+          if (strcmp(tmp, dir_imgs[i]) == 0) {
+            img_pos = i;
+            break;
+          }
+        }
+        free(tmp);
+      }
+      
+      if ([event keyCode] == 0x26)
+        img_pos--;
+      else
+        img_pos++;
+      
+      if (img_pos < 0)
+        img_pos = dir_imgs_len - 1;
+      else if (img_pos == dir_imgs_len)
+        img_pos = 0;
+      
+      size_t needed = snprintf(NULL, 0, "%s/%s", dir, dir_imgs[img_pos]) + 1;
+      char* buffer = malloc(needed);
+      snprintf(buffer, needed, "%s/%s", dir, dir_imgs[img_pos]);
+      FREE_IMG;
+      img = load_img(buffer);
+      
+      NSRect frame = [[self window] frame];
+      frame.size.width  = img->w;
+      frame.size.height = img->h;
+      [[self window] setFrame:frame
+                      display:YES
+                      animate:animate_window];
       break;
     default:
       break;
@@ -78,69 +222,93 @@ static BOOL animate_window = NO;
   CGContextRef ctx = [[NSGraphicsContext currentContext] graphicsPort];
   
   CGColorSpaceRef s = CGColorSpaceCreateDeviceRGB();
-  CGDataProviderRef p = CGDataProviderCreateWithData(NULL, buf, w * h * c, NULL);
-  CGImageRef img = CGImageCreate(w, h, 8, 32, w * c, s, kCGBitmapByteOrderDefault, p, NULL, false, kCGRenderingIntentDefault);
+  CGDataProviderRef p = CGDataProviderCreateWithData(NULL, img->buf, img->w * img->h * BPP, NULL);
+  CGImageRef cgir = CGImageCreate(img->w, img->h, 8, 32, img->w * BPP, s, kCGBitmapByteOrderDefault, p, NULL, false, kCGRenderingIntentDefault);
   
   CGColorSpaceRelease(s);
   CGDataProviderRelease(p);
   
-  CGContextDrawImage(ctx, CGRectMake(0, 0, bounds.size.width, bounds.size.height), img);
+  CGContextDrawImage(ctx, CGRectMake(0, 0, bounds.size.width, bounds.size.height), cgir);
   
-  CGImageRelease(img);
+  CGImageRelease(cgir);
+}
+
+-(void)dealloc {
+  FREE_IMG;
+  if (dir_imgs) {
+    for (int i = 0; i < dir_imgs_len; ++i)
+      if (dir_imgs[i])
+        free(dir_imgs[i]);
+    free(dir_imgs);
+  }
 }
 @end
 
+int create_window(const char* path) {
+  id menubar = [NSMenu alloc];
+  id appMenuItem = [NSMenuItem alloc];
+  [menubar addItem:appMenuItem];
+  [NSApp setMainMenu:menubar];
+  id appMenu = [NSMenu alloc];
+  id appName = [[NSProcessInfo processInfo] processName];
+  id quitTitle = [@"Quit " stringByAppendingString:appName];
+  id quitMenuItem = [[NSMenuItem alloc] initWithTitle:quitTitle
+                                               action:@selector(terminate:)
+                                        keyEquivalent:@"q"];
+  [appMenu addItem:quitMenuItem];
+  [appMenuItem setSubmenu:appMenu];
+  
+  image_t* img = load_img(path);
+  if (!img)
+    return 0;
+  
+  id window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, img->w, img->h)
+                                          styleMask:NSWindowStyleMaskResizable | NSWindowStyleMaskTitled | NSWindowStyleMaskFullSizeContentView
+                                            backing:NSBackingStoreBuffered
+                                              defer:NO];
+  if (!window) {
+    fprintf(stderr, "alloc() failed: out of memory\n");
+    [NSApp terminate:nil];
+  }
+  
+  [window center];
+  [window setTitle:@""];
+  [window makeKeyAndOrderFront:nil];
+  [window setMovableByWindowBackground:YES];
+  [window setTitlebarAppearsTransparent:YES];
+  [[window standardWindowButton:NSWindowZoomButton] setHidden:YES];
+  [[window standardWindowButton:NSWindowCloseButton] setHidden:YES];
+  [[window standardWindowButton:NSWindowMiniaturizeButton] setHidden:YES];
+  
+  id app_del = [AppDelegate alloc];
+  if (!app_del) {
+    fprintf(stderr, "alloc() failed: out of memory\n");
+    [NSApp terminate:nil];
+  }
+  [NSApp setDelegate:app_del];
+  id app_view = [[AppView alloc] initWithFrame:NSMakeRect(0, 0, img->w, img->h)
+                                         Image:img];
+  [window setContentView:app_view];
+  
+  return 1;
+}
+
 int main(int argc, const char* argv[]) {
   MagickWandGenesis();
-  
-  MagickWand* test = NewMagickWand();
-  if (MagickReadImage(test, "/Users/roryb/Pictures/34a01325ab9978f260022e0154ab0397.jpg") == MagickFalse) {
-    return 1;
-  }
-  w = MagickGetImageWidth(test);
-  h = MagickGetImageHeight(test);
-  c = 4;
-  buf = malloc(w * h * c);
-  MagickExportImagePixels(test, 0, 0, w, h, "RGBA", CharPixel, buf);
-  
+  atexit(MagickWandTerminus);
   
   @autoreleasepool {
     [NSApplication sharedApplication];
     [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
     
-    id menubar = [NSMenu alloc];
-    id appMenuItem = [NSMenuItem alloc];
-    [menubar addItem:appMenuItem];
-    [NSApp setMainMenu:menubar];
-    id appMenu = [NSMenu alloc];
-    id appName = [[NSProcessInfo processInfo] processName];
-    id quitTitle = [@"Quit " stringByAppendingString:appName];
-    id quitMenuItem = [[NSMenuItem alloc] initWithTitle:quitTitle
-                                                 action:@selector(terminate:)
-                                          keyEquivalent:@"q"];
-    [appMenu addItem:quitMenuItem];
-    [appMenuItem setSubmenu:appMenu];
-    
-    id window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, w, h)
-                                            styleMask:NSWindowStyleMaskResizable | NSWindowStyleMaskTitled | NSWindowStyleMaskFullSizeContentView
-                                              backing:NSBackingStoreBuffered
-                                                defer:NO];
-    
-    [window center];
-    [window setTitle:@""];
-    [window makeKeyAndOrderFront:nil];
-    [window setMovableByWindowBackground:YES];
-    [window setTitlebarAppearsTransparent:YES];
-    [[window standardWindowButton:NSWindowZoomButton] setHidden:YES];
-    [[window standardWindowButton:NSWindowCloseButton] setHidden:YES];
-    [[window standardWindowButton:NSWindowMiniaturizeButton] setHidden:YES];
-    
-    id app_del = [AppDelegate alloc];
-    if (!app_del)
-      [NSApp terminate:nil];
-    [NSApp setDelegate:app_del];
-    id app_view = [[AppView alloc] initWithFrame:NSMakeRect(0, 0, w, h)];
-    [window setContentView:app_view];
+    int n_windows = 0;
+    for (int i = 1; i < argc; ++i)
+      if (create_window(argv[i]))
+        n_windows++;
+    if (!n_windows) {
+      fprintf(stderr, "No valid images passed through arguments\n");
+      return 1;
+    }
     
     [NSApp activateIgnoringOtherApps:YES];
     [NSApp run];
