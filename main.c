@@ -43,27 +43,34 @@ static const char* valid_exts[11] = {
   ".pnm", ".pgm"
 };
 static char** dir_imgs;
-static int dir_imgs_len;
+static int dir_imgs_len, img_pos;
 
 void free_dir_imgs() {
   if (dir_imgs) {
-    for (int i = 0; i < dir_imgs_len; ++i) {
+    for (int i = 0; i < dir_imgs_len; ++i)
       if (dir_imgs[i])
         free(dir_imgs[i]);
-    }
     free(dir_imgs);
   }
 }
 
-void cleanup() {
+void free_imgs() {
   if (orig_buf)
     stbi_image_free(orig_buf);
   if (buf)
     stbi_image_free(buf);
+}
+
+void free_paths() {
   if (cdir)
     free(cdir);
   if (cpath)
     free(cpath);
+}
+
+void cleanup() {
+  free_imgs();
+  free_paths();
   free_dir_imgs();
 }
 
@@ -115,7 +122,8 @@ void get_dir_imgs(const char* path) {
   closedir(d);
 }
 
-int load_first_img(const char* path) {
+int load_img(const char* path) {
+  free_imgs();
   orig_buf = stbi_load(path, &w, &h, &c, 4);
   if (!orig_buf) {
     printf("stbi_load() failed: %s\n", stbi_failure_reason());
@@ -123,6 +131,13 @@ int load_first_img(const char* path) {
   }
   buf = malloc(w * h * 4);
   memcpy(buf, orig_buf, w * h * 4);
+  return 1;
+}
+
+int load_first_img(const char* path) {
+  if (!load_img(path))
+    return 0;
+  free_paths();
   cdir = dirname((char*)path);
   cpath = strdup(path);
   return 1;
@@ -161,14 +176,43 @@ int load_first_img(const char* path) {
       [NSApp terminate:nil];
       break;
     case 0x26: // J
+    case 0x28: // K
       if (!dir_imgs) {
         get_dir_imgs(cdir);
+        char* tmp = basename(cpath);
         for (int i = 0; i < dir_imgs_len; ++i) {
-          printf("%s\n", dir_imgs[i]);
+          if (strcmp(tmp, dir_imgs[i]) == 0) {
+            img_pos = i;
+            break;
+          }
         }
+        free(tmp);
       }
-      break;
-    case 0x28: // K
+      
+      if ([event keyCode] == 0x26)
+        img_pos--;
+      else
+        img_pos++;
+      if (img_pos < 0)
+        img_pos = 0;
+      else if (img_pos == dir_imgs_len)
+        img_pos--;
+      else {
+        free(cpath);
+        size_t needed = snprintf(NULL, 0, "%s/%s", cdir, dir_imgs[img_pos]) + 1;
+        char* buffer = malloc(needed);
+        snprintf(buffer, needed, "%s/%s", cdir, dir_imgs[img_pos]);
+        cpath = buffer;
+        
+        load_img(cpath);
+        NSRect frame = [[self window] frame];
+        frame.size.width  = w;
+        frame.size.height = h;
+        [[self window] setFrame:frame
+                        display:YES
+                        animate:YES];
+        
+      }
       break;
     default:
       break;
