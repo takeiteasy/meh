@@ -7,9 +7,10 @@ See top of ```main.c``` for TODO list
 
 ## Shortcuts
 ```
-ESC, Q, CMD+Q = Quit
-J             = Prev img
-K             = Next img
+ESC, Q = Close window
+CMD+Q  = Close all windows
+J      = Prev img
+K      = Next img
 ```
 
 ## Screenshot

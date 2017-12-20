@@ -14,6 +14,7 @@
  *  - Animated GIFs (http://gist.github.com/urraka/685d9a6340b26b830d49)
  *  - EXIF info
  *  - Slideshow
+ *  - Handle alpha
  *  - Replace stb_image with ImageMagick
  */
 
@@ -221,6 +222,12 @@ int load_first_img(const char* path) {
         int s = w * h * 4;
         orig_buf = malloc(s);
         memset(orig_buf, 0, s);
+        for (int i = 0; i < s; i += 4) {
+          orig_buf[i + 0] = 255;
+          orig_buf[i + 1] = 0;
+          orig_buf[i + 2] = 255;
+          orig_buf[i + 3] = 255;
+        }
         buf = orig_buf;
         [[self window] setStyleMask:[[self window] styleMask] & ~NSWindowStyleMaskResizable];
       } else {
