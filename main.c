@@ -6,16 +6,127 @@
 //  Copyright © 2017 Rory B. Bellows. All rights reserved.
 //
 
-static int w, h, c;
-static unsigned char *orig_buf, *buf;
+/* TODO
+ *  - Next/prev image in dir
+ *  - Argument parsing
+ *  - Multiple windows (fork?)
+ *  - Handle images bigger than screen
+ *  - Different backends (Metal/OpenGL)
+ *  - Preserve aspect ratio on resize
+ *  - cURL integration
+ *  - Animated GIFs (http://gist.github.com/urraka/685d9a6340b26b830d49)
+ *  - EXIF info
+ *  - Slideshow
+ */
 
 #include <stdio.h>
+#include <dirent.h>
+#include <libgen.h>
+#include <string.h>
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Weverything"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "stb_image_resize.h"
+#pragma clang diagnostic pop
 #import <Foundation/Foundation.h>
 #import <Cocoa/Cocoa.h>
+
+static int w, h, c;
+static unsigned char *orig_buf, *buf;
+static char *cdir, *cpath;
+static const char* valid_exts[11] = {
+  ".jpg", ".jpeg", ".png",
+  ".bmp", ".tga",  ".psd",
+  ".gif", ".hdr",  ".pic",
+  ".pnm", ".pgm"
+};
+static char** dir_imgs;
+static int dir_imgs_len;
+
+void free_dir_imgs() {
+  if (dir_imgs) {
+    for (int i = 0; i < dir_imgs_len; ++i) {
+      if (dir_imgs[i])
+        free(dir_imgs[i]);
+    }
+    free(dir_imgs);
+  }
+}
+
+void cleanup() {
+  if (orig_buf)
+    stbi_image_free(orig_buf);
+  if (buf)
+    stbi_image_free(buf);
+  if (cdir)
+    free(cdir);
+  if (cpath)
+    free(cpath);
+  free_dir_imgs();
+}
+
+static int sort_strcmp(const void* a, const void* b) {
+  return strcmp(*(const char**)a, *(const char**)b);
+}
+
+void sort(const char* arr[], int n) {
+  qsort (arr, n, sizeof(const char*), sort_strcmp);
+}
+
+void get_dir_imgs(const char* path) {
+  struct dirent* dir;
+  DIR* d = opendir(path);
+  if (!d)
+    return;
+  
+  free_dir_imgs();
+  dir_imgs = malloc(1024 * sizeof(char*));
+  if (!dir_imgs) {
+    fprintf(stderr, "malloc() failed: out of memory\n");
+    [NSApp terminate:nil];
+  }
+  
+  int i = 0, j = 0, k = 1024;
+  while ((dir = readdir(d)) != NULL) {
+    if (dir->d_type == DT_REG) {
+      char* ext = strrchr(dir->d_name, '.');
+      if (!ext)
+        continue;
+      for (char* p = ext; *p; ++p)
+        *p = tolower(*p);
+      for (i = 0; i < 11; ++i) {
+        if (strcmp(ext, valid_exts[i]) == 0) {
+          dir_imgs[j] = malloc(strlen(dir->d_name));
+          strcpy(dir_imgs[j], dir->d_name);
+          j += 1;
+          if (j == k) {
+            k += 1024;
+            dir_imgs = realloc(dir_imgs, k * sizeof(char*));
+          }
+          break;
+        }
+      }
+    }
+  }
+  sort((const char**)dir_imgs, j);
+  dir_imgs_len = j;
+  closedir(d);
+}
+
+int load_first_img(const char* path) {
+  orig_buf = stbi_load(path, &w, &h, &c, 4);
+  if (!orig_buf) {
+    printf("stbi_load() failed: %s\n", stbi_failure_reason());
+    return 0;
+  }
+  buf = malloc(w * h * 4);
+  memcpy(buf, orig_buf, w * h * 4);
+  cdir = dirname((char*)path);
+  cpath = strdup(path);
+  return 1;
+}
 
 @interface AppDelegate : NSApplication {}
 @end
@@ -40,6 +151,30 @@ static unsigned char *orig_buf, *buf;
   return YES;
 }
 
+-(void)keyDown:(NSEvent *)event {
+}
+
+-(void)keyUp:(NSEvent *)event {
+  switch ([event keyCode]) {
+    case 0x35: // ESC
+    case 0x0C: // Q
+      [NSApp terminate:nil];
+      break;
+    case 0x26: // J
+      if (!dir_imgs) {
+        get_dir_imgs(cdir);
+        for (int i = 0; i < dir_imgs_len; ++i) {
+          printf("%s\n", dir_imgs[i]);
+        }
+      }
+      break;
+    case 0x28: // K
+      break;
+    default:
+      break;
+  }
+}
+
 -(void)drawRect:(NSRect)dirtyRect {
   NSRect bounds = [self bounds];
   buf = realloc(buf, bounds.size.width * bounds.size.height * 4);
@@ -61,13 +196,10 @@ static unsigned char *orig_buf, *buf;
 @end
 
 int main(int argc, const char * argv[]) {
-  orig_buf = stbi_load("/Users/roryb/Pictures/40e4bfd8f20f5f370f1125dbea504b5859ab6884bde4b59a3044c2c4f64feb12.jpg", &w, &h, &c, 4);
-  if (!orig_buf) {
-    printf("stbi_load() failed: %s\n", stbi_failure_reason());
+  if (!load_first_img("/Users/roryb/Pictures/40e4bfd8f20f5f370f1125dbea504b5859ab6884bde4b59a3044c2c4f64feb12.jpg"))
     return 1;
-  }
-  buf = malloc(w * h * 4);
-  memcpy(buf, orig_buf, w * h * 4);
+  
+  atexit(cleanup);
   
   @autoreleasepool {
     [NSApplication sharedApplication];
