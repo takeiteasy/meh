@@ -207,43 +207,41 @@ int load_first_img(const char* path) {
         img_pos++;
       
       if (img_pos < 0)
-        img_pos = 0;
+        img_pos = dir_imgs_len - 1;
       else if (img_pos == dir_imgs_len)
-        img_pos--;
-      else {
-        free(cpath);
-        size_t needed = snprintf(NULL, 0, "%s/%s", cdir, dir_imgs[img_pos]) + 1;
-        char* buffer = malloc(needed);
-        snprintf(buffer, needed, "%s/%s", cdir, dir_imgs[img_pos]);
-        cpath = buffer;
-        
-        
-        if (!load_img(cpath)) {
-          last_img_failed = 1;
-          w = 640;
-          h = 480;
-          int s = w * h * 4;
-          orig_buf = malloc(s);
-          memset(orig_buf, 0, s);
-          buf = orig_buf;
-          [[self window] setStyleMask:[[self window] styleMask] & ~NSWindowStyleMaskResizable];
-        } else {
-          if (last_img_failed) {
-            [[self window] setStyleMask:[[self window] styleMask] | NSWindowStyleMaskResizable];
-            [[[self window] standardWindowButton:NSWindowZoomButton] setHidden:YES];
-            [[[self window] standardWindowButton:NSWindowCloseButton] setHidden:YES];
-            [[[self window] standardWindowButton:NSWindowMiniaturizeButton] setHidden:YES];
-          }
-          last_img_failed = 0;
+        img_pos = 0;
+      
+      free(cpath);
+      size_t needed = snprintf(NULL, 0, "%s/%s", cdir, dir_imgs[img_pos]) + 1;
+      char* buffer = malloc(needed);
+      snprintf(buffer, needed, "%s/%s", cdir, dir_imgs[img_pos]);
+      cpath = buffer;
+      
+      if (!load_img(cpath)) {
+        last_img_failed = 1;
+        w = 640;
+        h = 480;
+        int s = w * h * 4;
+        orig_buf = malloc(s);
+        memset(orig_buf, 0, s);
+        buf = orig_buf;
+        [[self window] setStyleMask:[[self window] styleMask] & ~NSWindowStyleMaskResizable];
+      } else {
+        if (last_img_failed) {
+          [[self window] setStyleMask:[[self window] styleMask] | NSWindowStyleMaskResizable];
+          [[[self window] standardWindowButton:NSWindowZoomButton] setHidden:YES];
+          [[[self window] standardWindowButton:NSWindowCloseButton] setHidden:YES];
+          [[[self window] standardWindowButton:NSWindowMiniaturizeButton] setHidden:YES];
         }
-        
-        NSRect frame = [[self window] frame];
-        frame.size.width  = w;
-        frame.size.height = h;
-        [[self window] setFrame:frame
-                        display:YES
-                        animate:animate_window];
+        last_img_failed = 0;
       }
+      
+      NSRect frame = [[self window] frame];
+      frame.size.width  = w;
+      frame.size.height = h;
+      [[self window] setFrame:frame
+                      display:YES
+                      animate:animate_window];
       break;
     default:
       break;
@@ -273,7 +271,7 @@ int load_first_img(const char* path) {
 @end
 
 int main(int argc, const char * argv[]) {
-  if (!load_first_img("/Users/roryb/Pictures/8caf9d850f8390a9caf8d9e3594fcf2506b901a58da3da731cd369ce131fc786.png"))
+  if (!load_first_img("/Users/roryb/Pictures/DRSpBtiUEAA3cgM.jpg"))
     return 1;
   
   atexit(cleanup);
