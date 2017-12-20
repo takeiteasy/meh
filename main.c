@@ -202,7 +202,8 @@ static BOOL animate_window = NO;
       char* buffer = malloc(needed);
       snprintf(buffer, needed, "%s/%s", dir, dir_imgs[img_pos]);
       FREE_IMG;
-      img = load_img(buffer);
+      if (!(img = load_img(buffer)))
+        [[self window] close];
       
       NSRect frame = [[self window] frame];
       frame.size.width  = img->w;
@@ -210,6 +211,7 @@ static BOOL animate_window = NO;
       [[self window] setFrame:frame
                       display:YES
                       animate:animate_window];
+      [self setNeedsDisplay:YES];
       break;
     default:
       break;
