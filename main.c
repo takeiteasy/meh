@@ -8,10 +8,8 @@
 
 /* TODO
  *  - Argument parsing
- *  - Multiple windows (fork?)
- *  - Handle images bigger than screen
+ *  - Handle images bigger than screen & preserve aspect ratio on resize
  *  - Different backends (Metal/OpenGL)
- *  - Preserve aspect ratio on resize
  *  - cURL integration
  *  - Animated GIFs (http://gist.github.com/urraka/685d9a6340b26b830d49)
  *  - EXIF info
@@ -79,7 +77,6 @@ void free_paths() {
 }
 
 void cleanup() {
-  last_img_failed = 0;
   free_imgs();
   free_paths();
   free_dir_imgs();
@@ -159,8 +156,8 @@ int load_first_img(const char* path) {
 @end
 
 @implementation AppDelegate
--(BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication*)theApplication {
-  (void)theApplication;
+-(BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication*)app {
+  (void)app;
   return YES;
 }
 @end
@@ -185,7 +182,7 @@ int load_first_img(const char* path) {
   switch ([event keyCode]) {
     case 0x35: // ESC
     case 0x0C: // Q
-      [NSApp terminate:nil];
+      [[self window] close];
       break;
     case 0x26: // J
     case 0x28: // K
@@ -270,49 +267,59 @@ int load_first_img(const char* path) {
 }
 @end
 
-int main(int argc, const char * argv[]) {
-  if (!load_first_img("/Users/roryb/Pictures/DRSpBtiUEAA3cgM.jpg"))
-    return 1;
+void create_window() {
+  id menubar = [NSMenu alloc];
+  id appMenuItem = [NSMenuItem alloc];
+  [menubar addItem:appMenuItem];
+  [NSApp setMainMenu:menubar];
+  id appMenu = [NSMenu alloc];
+  id appName = [[NSProcessInfo processInfo] processName];
+  id quitTitle = [@"Quit " stringByAppendingString:appName];
+  id quitMenuItem = [[NSMenuItem alloc] initWithTitle:quitTitle
+                                               action:@selector(terminate:)
+                                        keyEquivalent:@"q"];
+  [appMenu addItem:quitMenuItem];
+  [appMenuItem setSubmenu:appMenu];
   
-  atexit(cleanup);
+  id window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, w, h)
+                                          styleMask:NSWindowStyleMaskResizable | NSWindowStyleMaskTitled | NSWindowStyleMaskFullSizeContentView
+                                            backing:NSBackingStoreBuffered
+                                              defer:NO];
   
+  [window center];
+  [window setTitle:@""];
+  [window makeKeyAndOrderFront:nil];
+  [window setMovableByWindowBackground:YES];
+  [window setTitlebarAppearsTransparent:YES];
+  [[window standardWindowButton:NSWindowZoomButton] setHidden:YES];
+  [[window standardWindowButton:NSWindowCloseButton] setHidden:YES];
+  [[window standardWindowButton:NSWindowMiniaturizeButton] setHidden:YES];
+  
+  id app_del = [AppDelegate alloc];
+  if (!app_del)
+    [NSApp terminate:nil];
+  [NSApp setDelegate:app_del];
+  id app_view = [[AppView alloc] initWithFrame:NSMakeRect(0, 0, w, h)];
+  [window setContentView:app_view];
+}
+
+int main(int argc, const char* argv[]) {
   @autoreleasepool {
     [NSApplication sharedApplication];
     [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
     
-    id menubar = [NSMenu alloc];
-    id appMenuItem = [NSMenuItem alloc];
-    [menubar addItem:appMenuItem];
-    [NSApp setMainMenu:menubar];
-    id appMenu = [NSMenu alloc];
-    id appName = [[NSProcessInfo processInfo] processName];
-    id quitTitle = [@"Quit " stringByAppendingString:appName];
-    id quitMenuItem = [[NSMenuItem alloc] initWithTitle:quitTitle
-                                                 action:@selector(terminate:)
-                                          keyEquivalent:@"q"];
-    [appMenu addItem:quitMenuItem];
-    [appMenuItem setSubmenu:appMenu];
-    
-    id window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, w, h)
-                                            styleMask:NSWindowStyleMaskResizable | NSWindowStyleMaskTitled | NSWindowStyleMaskFullSizeContentView
-                                              backing:NSBackingStoreBuffered
-                                                defer:NO];
-    
-    [window center];
-    [window setTitle:@""];
-    [window makeKeyAndOrderFront:nil];
-    [window setMovableByWindowBackground:YES];
-    [window setTitlebarAppearsTransparent:YES];
-    [[window standardWindowButton:NSWindowZoomButton] setHidden:YES];
-    [[window standardWindowButton:NSWindowCloseButton] setHidden:YES];
-    [[window standardWindowButton:NSWindowMiniaturizeButton] setHidden:YES];
-    
-    id app_del = [AppDelegate alloc];
-    if (!app_del)
-      [NSApp terminate:nil];
-    [NSApp setDelegate:app_del];
-    id app_view = [[AppView alloc] initWithFrame:NSMakeRect(0, 0, w, h)];
-    [window setContentView:app_view];
+    int n_windows = 0;
+    for (int i = 1; i < argc; ++i) {
+      if (load_first_img(argv[i])) {
+        create_window();
+        n_windows++;
+      }
+    }
+    if (!n_windows) {
+      fprintf(stderr, "No valid images passed to arguments.\n");
+      return 1;
+    }
+    atexit(cleanup);
     
     [NSApp activateIgnoringOtherApps:YES];
     [NSApp run];
