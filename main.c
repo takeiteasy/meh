@@ -50,27 +50,29 @@ static const char* valid_exts[11] = {
 static char** dir_imgs;
 static int dir_imgs_len, img_pos;
 
+#define FREE_NULL(x) \
+if (x) { \
+  free(x); \
+  x = NULL; \
+}
+
 void free_dir_imgs() {
   if (dir_imgs) {
-    for (int i = 0; i < dir_imgs_len; ++i)
-      if (dir_imgs[i])
-        free(dir_imgs[i]);
-    free(dir_imgs);
+    for (int i = 0; i < dir_imgs_len; ++i) {
+      FREE_NULL(dir_imgs[i]);
+    }
+    FREE_NULL(dir_imgs);
   }
 }
 
 void free_imgs() {
-  if (orig_buf)
-    stbi_image_free(orig_buf);
-  if (buf)
-    stbi_image_free(buf);
+  FREE_NULL(orig_buf);
+  FREE_NULL(buf);
 }
 
 void free_paths() {
-  if (cdir)
-    free(cdir);
-  if (cpath)
-    free(cpath);
+  FREE_NULL(cdir);
+  FREE_NULL(cpath);
 }
 
 void cleanup() {
@@ -84,7 +86,7 @@ static int sort_strcmp(const void* a, const void* b) {
 }
 
 void sort(const char* arr[], int n) {
-  qsort (arr, n, sizeof(const char*), sort_strcmp);
+  qsort(arr, n, sizeof(const char*), sort_strcmp);
 }
 
 void get_dir_imgs(const char* path) {
@@ -246,7 +248,7 @@ int load_first_img(const char* path) {
 @end
 
 int main(int argc, const char * argv[]) {
-  if (!load_first_img("/Users/roryb/Pictures/40e4bfd8f20f5f370f1125dbea504b5859ab6884bde4b59a3044c2c4f64feb12.jpg"))
+  if (!load_first_img("/Users/roryb/Pictures/8caf9d850f8390a9caf8d9e3594fcf2506b901a58da3da731cd369ce131fc786.png"))
     return 1;
   
   atexit(cleanup);
