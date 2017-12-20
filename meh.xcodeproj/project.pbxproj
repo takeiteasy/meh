@@ -11,6 +11,7 @@
 		88DC5A621FEA57D100425BDA /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 88DC5A611FEA57D100425BDA /* Cocoa.framework */; };
 		88DC5A641FEA57D800425BDA /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 88DC5A631FEA57D800425BDA /* Foundation.framework */; };
 		88DC5A661FEA57DE00425BDA /* libobjc.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 88DC5A651FEA57DD00425BDA /* libobjc.tbd */; };
+		88DC5A681FEA84DD00425BDA /* libMagickWand-7.Q16HDRI.4.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 88DC5A671FEA84DD00425BDA /* libMagickWand-7.Q16HDRI.4.dylib */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -28,11 +29,10 @@
 /* Begin PBXFileReference section */
 		88DC5A511FE8F48100425BDA /* meh */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = meh; sourceTree = BUILT_PRODUCTS_DIR; };
 		88DC5A5C1FE9003E00425BDA /* main.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = SOURCE_ROOT; };
-		88DC5A5D1FE9003E00425BDA /* stb_image.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stb_image.h; sourceTree = SOURCE_ROOT; };
-		88DC5A5F1FE9008200425BDA /* stb_image_resize.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = stb_image_resize.h; sourceTree = SOURCE_ROOT; };
 		88DC5A611FEA57D100425BDA /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 		88DC5A631FEA57D800425BDA /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		88DC5A651FEA57DD00425BDA /* libobjc.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libobjc.tbd; path = usr/lib/libobjc.tbd; sourceTree = SDKROOT; };
+		88DC5A671FEA84DD00425BDA /* libMagickWand-7.Q16HDRI.4.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libMagickWand-7.Q16HDRI.4.dylib"; path = "../../../../../usr/local/Cellar/imagemagick/7.0.7-11/lib/libMagickWand-7.Q16HDRI.4.dylib"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -40,6 +40,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				88DC5A681FEA84DD00425BDA /* libMagickWand-7.Q16HDRI.4.dylib in Frameworks */,
 				88DC5A661FEA57DE00425BDA /* libobjc.tbd in Frameworks */,
 				88DC5A641FEA57D800425BDA /* Foundation.framework in Frameworks */,
 				88DC5A621FEA57D100425BDA /* Cocoa.framework in Frameworks */,
@@ -70,8 +71,6 @@
 			isa = PBXGroup;
 			children = (
 				88DC5A5C1FE9003E00425BDA /* main.c */,
-				88DC5A5D1FE9003E00425BDA /* stb_image.h */,
-				88DC5A5F1FE9008200425BDA /* stb_image_resize.h */,
 			);
 			path = meh;
 			sourceTree = "<group>";
@@ -79,6 +78,7 @@
 		88DC5A601FEA57D100425BDA /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				88DC5A671FEA84DD00425BDA /* libMagickWand-7.Q16HDRI.4.dylib */,
 				88DC5A651FEA57DD00425BDA /* libobjc.tbd */,
 				88DC5A631FEA57D800425BDA /* Foundation.framework */,
 				88DC5A611FEA57D100425BDA /* Cocoa.framework */,
@@ -257,6 +257,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				HEADER_SEARCH_PATHS = "/usr/local/include/ImageMagick-7";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"/usr/local/Cellar/imagemagick/7.0.7-11/lib",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -265,6 +270,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				HEADER_SEARCH_PATHS = "/usr/local/include/ImageMagick-7";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"/usr/local/Cellar/imagemagick/7.0.7-11/lib",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
