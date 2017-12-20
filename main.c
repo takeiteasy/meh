@@ -16,6 +16,7 @@
  *  - Animated GIFs (http://gist.github.com/urraka/685d9a6340b26b830d49)
  *  - EXIF info
  *  - Slideshow
+ *  - Replace stb_image with ImageMagick
  */
 
 #include <stdio.h>
@@ -38,7 +39,7 @@ static BOOL animate_window = YES;
 static BOOL animate_window = NO;
 #endif
 
-static int w, h, c;
+static int w, h, c, last_img_failed = 0;
 static unsigned char *orig_buf, *buf;
 static char *cdir, *cpath;
 static const char* valid_exts[11] = {
@@ -67,7 +68,9 @@ void free_dir_imgs() {
 
 void free_imgs() {
   FREE_NULL(orig_buf);
-  FREE_NULL(buf);
+  if (!last_img_failed) {
+    FREE_NULL(buf);
+  }
 }
 
 void free_paths() {
@@ -76,6 +79,7 @@ void free_paths() {
 }
 
 void cleanup() {
+  last_img_failed = 0;
   free_imgs();
   free_paths();
   free_dir_imgs();
@@ -133,6 +137,7 @@ int load_img(const char* path) {
   free_imgs();
   orig_buf = stbi_load(path, &w, &h, &c, 4);
   if (!orig_buf) {
+    orig_buf = NULL;
     printf("stbi_load(%s) failed: %s\n", path, stbi_failure_reason());
     return 0;
   }
@@ -212,14 +217,32 @@ int load_first_img(const char* path) {
         snprintf(buffer, needed, "%s/%s", cdir, dir_imgs[img_pos]);
         cpath = buffer;
         
-        load_img(cpath);
+        
+        if (!load_img(cpath)) {
+          last_img_failed = 1;
+          w = 640;
+          h = 480;
+          int s = w * h * 4;
+          orig_buf = malloc(s);
+          memset(orig_buf, 0, s);
+          buf = orig_buf;
+          [[self window] setStyleMask:[[self window] styleMask] & ~NSWindowStyleMaskResizable];
+        } else {
+          if (last_img_failed) {
+            [[self window] setStyleMask:[[self window] styleMask] | NSWindowStyleMaskResizable];
+            [[[self window] standardWindowButton:NSWindowZoomButton] setHidden:YES];
+            [[[self window] standardWindowButton:NSWindowCloseButton] setHidden:YES];
+            [[[self window] standardWindowButton:NSWindowMiniaturizeButton] setHidden:YES];
+          }
+          last_img_failed = 0;
+        }
+        
         NSRect frame = [[self window] frame];
         frame.size.width  = w;
         frame.size.height = h;
         [[self window] setFrame:frame
                         display:YES
                         animate:animate_window];
-        
       }
       break;
     default:
@@ -229,8 +252,10 @@ int load_first_img(const char* path) {
 
 -(void)drawRect:(NSRect)dirtyRect {
   NSRect bounds = [self bounds];
-  buf = realloc(buf, bounds.size.width * bounds.size.height * 4);
-  stbir_resize_uint8(orig_buf, w, h, 0, buf, bounds.size.width, bounds.size.height, 0, 4);
+  if (!last_img_failed) {
+    buf = realloc(buf, bounds.size.width * bounds.size.height * 4);
+    stbir_resize_uint8(orig_buf, w, h, 0, buf, bounds.size.width, bounds.size.height, 0, 4);
+  }
   
   CGContextRef ctx = [[NSGraphicsContext currentContext] graphicsPort];
   
