@@ -7,7 +7,6 @@
 //
 
 /* TODO
- *  - Next/prev image in dir
  *  - Argument parsing
  *  - Multiple windows (fork?)
  *  - Handle images bigger than screen
@@ -32,6 +31,12 @@
 #pragma clang diagnostic pop
 #import <Foundation/Foundation.h>
 #import <Cocoa/Cocoa.h>
+
+#if defined(MEH_ANIMATE_RESIZE)
+static BOOL animate_window = YES;
+#else
+static BOOL animate_window = NO;
+#endif
 
 static int w, h, c;
 static unsigned char *orig_buf, *buf;
@@ -126,7 +131,7 @@ int load_img(const char* path) {
   free_imgs();
   orig_buf = stbi_load(path, &w, &h, &c, 4);
   if (!orig_buf) {
-    printf("stbi_load() failed: %s\n", stbi_failure_reason());
+    printf("stbi_load(%s) failed: %s\n", path, stbi_failure_reason());
     return 0;
   }
   buf = malloc(w * h * 4);
@@ -193,6 +198,7 @@ int load_first_img(const char* path) {
         img_pos--;
       else
         img_pos++;
+      
       if (img_pos < 0)
         img_pos = 0;
       else if (img_pos == dir_imgs_len)
@@ -210,7 +216,7 @@ int load_first_img(const char* path) {
         frame.size.height = h;
         [[self window] setFrame:frame
                         display:YES
-                        animate:YES];
+                        animate:animate_window];
         
       }
       break;
@@ -255,7 +261,7 @@ int main(int argc, const char * argv[]) {
     [NSApp setMainMenu:menubar];
     id appMenu = [NSMenu alloc];
     id appName = [[NSProcessInfo processInfo] processName];
-    id quitTitle = [@"Quit" stringByAppendingString:appName];
+    id quitTitle = [@"Quit " stringByAppendingString:appName];
     id quitMenuItem = [[NSMenuItem alloc] initWithTitle:quitTitle
                                                  action:@selector(terminate:)
                                           keyEquivalent:@"q"];
