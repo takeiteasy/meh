@@ -66,6 +66,10 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "/Users/roryb/Pictures/8caf9d850f8390a9caf8d9e3594fcf2506b901a58da3da731cd369ce131fc786.png"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/roryb/Pictures/gayracula.jpg"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>

@@ -7,20 +7,24 @@
 //
 
 /* TODO
- *  - Argument parsing
- *  - Handle images bigger than screen & preserve aspect ratio on resize
+ *  - FIX: Sometimes just randomly crashes for no reason at [NSApp run] ????
+ *  - FIX: Handle images bigger than screen & preserve aspect ratio on resize
  *  - Different backends (Metal/OpenGL)
  *  - cURL integration
- *  - Animated GIFs (http://gist.github.com/urraka/685d9a6340b26b830d49)
+ *  - FIX: GIFs totally borked
+ *  - Animated GIFs
  *  - EXIF info
  *  - Slideshow
  *  - Handle alpha
+ *  - Argument parsing
  */
 
 #include <stdio.h>
 #include <dirent.h>
 #include <libgen.h>
 #include <string.h>
+#define MAGICKCORE_QUANTUM_DEPTH 32
+#define MAGICKCORE_HDRI_ENABLE 1
 #include <MagickWand/MagickWand.h>
 #import <Foundation/Foundation.h>
 #import <Cocoa/Cocoa.h>
@@ -41,14 +45,6 @@ typedef struct {
 } image_t;
 
 #define BPP 4
-
-#define FREE_IMG \
-if (img) { \
-  img->mw = DestroyMagickWand(img->mw); \
-  free(img->buf); \
-  free(img->path); \
-  free(img); \
-}
 
 image_t* load_img(const char* path) {
   image_t* img = malloc(sizeof(image_t));
@@ -109,6 +105,7 @@ static BOOL animate_window = NO;
 }
 
 -(void)populate_dir_imgs;
+-(void)free_img;
 @end
 
 @implementation AppView
@@ -158,6 +155,15 @@ static BOOL animate_window = NO;
   return self;
 }
 
+-(void)free_img {
+  if (img) {
+    img->mw = DestroyMagickWand(img->mw);
+    free(img->buf);
+    free(img->path);
+    free(img);
+  }
+}
+
 -(BOOL)acceptsFirstResponder {
   return YES;
 }
@@ -201,7 +207,8 @@ static BOOL animate_window = NO;
       size_t needed = snprintf(NULL, 0, "%s/%s", dir, dir_imgs[img_pos]) + 1;
       char* buffer = malloc(needed);
       snprintf(buffer, needed, "%s/%s", dir, dir_imgs[img_pos]);
-      FREE_IMG;
+      
+      [self free_img];
       if (!(img = load_img(buffer)))
         [[self window] close];
       
@@ -236,7 +243,7 @@ static BOOL animate_window = NO;
 }
 
 -(void)dealloc {
-  FREE_IMG;
+  [self free_img];
   if (dir_imgs) {
     for (int i = 0; i < dir_imgs_len; ++i)
       if (dir_imgs[i])
@@ -252,8 +259,7 @@ int create_window(const char* path) {
   [menubar addItem:appMenuItem];
   [NSApp setMainMenu:menubar];
   id appMenu = [NSMenu alloc];
-  id appName = [[NSProcessInfo processInfo] processName];
-  id quitTitle = [@"Quit " stringByAppendingString:appName];
+  id quitTitle = [@"Quit " stringByAppendingString:[[NSProcessInfo processInfo] processName]];
   id quitMenuItem = [[NSMenuItem alloc] initWithTitle:quitTitle
                                                action:@selector(terminate:)
                                         keyEquivalent:@"q"];
