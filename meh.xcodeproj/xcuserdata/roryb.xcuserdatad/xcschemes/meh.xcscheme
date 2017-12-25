@@ -14,7 +14,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "88DC5A501FE8F48100425BDA"
+               BlueprintIdentifier = "886DF6C71FF0FE4100055E47"
                BuildableName = "meh"
                BlueprintName = "meh"
                ReferencedContainer = "container:meh.xcodeproj">
@@ -33,7 +33,7 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "88DC5A501FE8F48100425BDA"
+            BlueprintIdentifier = "886DF6C71FF0FE4100055E47"
             BuildableName = "meh"
             BlueprintName = "meh"
             ReferencedContainer = "container:meh.xcodeproj">
@@ -57,7 +57,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "88DC5A501FE8F48100425BDA"
+            BlueprintIdentifier = "886DF6C71FF0FE4100055E47"
             BuildableName = "meh"
             BlueprintName = "meh"
             ReferencedContainer = "container:meh.xcodeproj">
@@ -65,11 +65,19 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
+            argument = "/Users/roryb/Pictures/0f6507395880920b5ce7c04c579a08983c508958b93b170edb46daa2957e6033.gif"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
             argument = "/Users/roryb/Pictures/8caf9d850f8390a9caf8d9e3594fcf2506b901a58da3da731cd369ce131fc786.png"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/roryb/Pictures/gayracula.jpg"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/roryb/Pictures/2fbb38acc99bb8fe4f7b065a5a0497c0cde2b7fea57623b3463323533d23ad4f.gif"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>
@@ -86,7 +94,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "88DC5A501FE8F48100425BDA"
+            BlueprintIdentifier = "886DF6C71FF0FE4100055E47"
             BuildableName = "meh"
             BlueprintName = "meh"
             ReferencedContainer = "container:meh.xcodeproj">

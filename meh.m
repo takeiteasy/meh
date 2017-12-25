@@ -1,5 +1,5 @@
 //
-//  main.c
+//  meh.m
 //  meh
 //
 //  Created by Rory B. Bellows on 19/12/2017.
@@ -180,6 +180,8 @@ static BOOL animate_window = NO;
       break;
     case 0x26: // J
     case 0x28: // K
+      
+      break;
       if (!dir_imgs) {
         self->dir = dirname(img->path);
         [self populate_dir_imgs];
@@ -323,3 +325,4 @@ int main(int argc, const char* argv[]) {
   }
   return 0;
 }
+

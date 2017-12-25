@@ -7,15 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		88DC5A5E1FE9003E00425BDA /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 88DC5A5C1FE9003E00425BDA /* main.c */; settings = {COMPILER_FLAGS = "-x objective-c"; }; };
-		88DC5A621FEA57D100425BDA /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 88DC5A611FEA57D100425BDA /* Cocoa.framework */; };
-		88DC5A641FEA57D800425BDA /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 88DC5A631FEA57D800425BDA /* Foundation.framework */; };
-		88DC5A661FEA57DE00425BDA /* libobjc.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 88DC5A651FEA57DD00425BDA /* libobjc.tbd */; };
-		88DC5A681FEA84DD00425BDA /* libMagickWand-7.Q16HDRI.4.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 88DC5A671FEA84DD00425BDA /* libMagickWand-7.Q16HDRI.4.dylib */; };
+		886DF6DC1FF0FFC000055E47 /* meh.m in Sources */ = {isa = PBXBuildFile; fileRef = 886DF6DB1FF0FFC000055E47 /* meh.m */; };
+		886DF6DE1FF0FFDE00055E47 /* libMagickWand-7.Q16HDRI.4.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 886DF6DD1FF0FFDE00055E47 /* libMagickWand-7.Q16HDRI.4.dylib */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		88DC5A4F1FE8F48100425BDA /* CopyFiles */ = {
+		886DF6C61FF0FE4100055E47 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = /usr/share/man/man1/;
@@ -27,75 +24,66 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		88DC5A511FE8F48100425BDA /* meh */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = meh; sourceTree = BUILT_PRODUCTS_DIR; };
-		88DC5A5C1FE9003E00425BDA /* main.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = SOURCE_ROOT; };
-		88DC5A611FEA57D100425BDA /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
-		88DC5A631FEA57D800425BDA /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
-		88DC5A651FEA57DD00425BDA /* libobjc.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libobjc.tbd; path = usr/lib/libobjc.tbd; sourceTree = SDKROOT; };
-		88DC5A671FEA84DD00425BDA /* libMagickWand-7.Q16HDRI.4.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libMagickWand-7.Q16HDRI.4.dylib"; path = "../../../../../usr/local/Cellar/imagemagick/7.0.7-11/lib/libMagickWand-7.Q16HDRI.4.dylib"; sourceTree = "<group>"; };
+		886DF6C81FF0FE4100055E47 /* meh */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = meh; sourceTree = BUILT_PRODUCTS_DIR; };
+		886DF6DB1FF0FFC000055E47 /* meh.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = meh.m; sourceTree = "<group>"; };
+		886DF6DD1FF0FFDE00055E47 /* libMagickWand-7.Q16HDRI.4.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libMagickWand-7.Q16HDRI.4.dylib"; path = "../../../../../usr/local/Cellar/imagemagick/7.0.7-11/lib/libMagickWand-7.Q16HDRI.4.dylib"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		88DC5A4E1FE8F48100425BDA /* Frameworks */ = {
+		886DF6C51FF0FE4100055E47 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				88DC5A681FEA84DD00425BDA /* libMagickWand-7.Q16HDRI.4.dylib in Frameworks */,
-				88DC5A661FEA57DE00425BDA /* libobjc.tbd in Frameworks */,
-				88DC5A641FEA57D800425BDA /* Foundation.framework in Frameworks */,
-				88DC5A621FEA57D100425BDA /* Cocoa.framework in Frameworks */,
+				886DF6DE1FF0FFDE00055E47 /* libMagickWand-7.Q16HDRI.4.dylib in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		88DC5A481FE8F48100425BDA = {
+		886DF6BF1FF0FE4100055E47 = {
 			isa = PBXGroup;
 			children = (
-				88DC5A531FE8F48100425BDA /* meh */,
-				88DC5A521FE8F48100425BDA /* Products */,
-				88DC5A601FEA57D100425BDA /* Frameworks */,
+				886DF6D81FF0FF3400055E47 /* meh */,
+				886DF6C91FF0FE4100055E47 /* Products */,
+				886DF6D21FF0FEB700055E47 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
-		88DC5A521FE8F48100425BDA /* Products */ = {
+		886DF6C91FF0FE4100055E47 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				88DC5A511FE8F48100425BDA /* meh */,
+				886DF6C81FF0FE4100055E47 /* meh */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		88DC5A531FE8F48100425BDA /* meh */ = {
+		886DF6D21FF0FEB700055E47 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				88DC5A5C1FE9003E00425BDA /* main.c */,
-			);
-			path = meh;
-			sourceTree = "<group>";
-		};
-		88DC5A601FEA57D100425BDA /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				88DC5A671FEA84DD00425BDA /* libMagickWand-7.Q16HDRI.4.dylib */,
-				88DC5A651FEA57DD00425BDA /* libobjc.tbd */,
-				88DC5A631FEA57D800425BDA /* Foundation.framework */,
-				88DC5A611FEA57D100425BDA /* Cocoa.framework */,
+				886DF6DD1FF0FFDE00055E47 /* libMagickWand-7.Q16HDRI.4.dylib */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		886DF6D81FF0FF3400055E47 /* meh */ = {
+			isa = PBXGroup;
+			children = (
+				886DF6DB1FF0FFC000055E47 /* meh.m */,
+			);
+			name = meh;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		88DC5A501FE8F48100425BDA /* meh */ = {
+		886DF6C71FF0FE4100055E47 /* meh */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 88DC5A581FE8F48100425BDA /* Build configuration list for PBXNativeTarget "meh" */;
+			buildConfigurationList = 886DF6CF1FF0FE4100055E47 /* Build configuration list for PBXNativeTarget "meh" */;
 			buildPhases = (
-				88DC5A4D1FE8F48100425BDA /* Sources */,
-				88DC5A4E1FE8F48100425BDA /* Frameworks */,
-				88DC5A4F1FE8F48100425BDA /* CopyFiles */,
+				886DF6C41FF0FE4100055E47 /* Sources */,
+				886DF6C51FF0FE4100055E47 /* Frameworks */,
+				886DF6C61FF0FE4100055E47 /* CopyFiles */,
 			);
 			buildRules = (
 			);
@@ -103,54 +91,54 @@
 			);
 			name = meh;
 			productName = meh;
-			productReference = 88DC5A511FE8F48100425BDA /* meh */;
+			productReference = 886DF6C81FF0FE4100055E47 /* meh */;
 			productType = "com.apple.product-type.tool";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		88DC5A491FE8F48100425BDA /* Project object */ = {
+		886DF6C01FF0FE4100055E47 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				LastUpgradeCheck = 0920;
 				ORGANIZATIONNAME = "Rory B. Bellows";
 				TargetAttributes = {
-					88DC5A501FE8F48100425BDA = {
+					886DF6C71FF0FE4100055E47 = {
 						CreatedOnToolsVersion = 9.2;
 						ProvisioningStyle = Automatic;
 					};
 				};
 			};
-			buildConfigurationList = 88DC5A4C1FE8F48100425BDA /* Build configuration list for PBXProject "meh" */;
+			buildConfigurationList = 886DF6C31FF0FE4100055E47 /* Build configuration list for PBXProject "meh" */;
 			compatibilityVersion = "Xcode 8.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
 			);
-			mainGroup = 88DC5A481FE8F48100425BDA;
-			productRefGroup = 88DC5A521FE8F48100425BDA /* Products */;
+			mainGroup = 886DF6BF1FF0FE4100055E47;
+			productRefGroup = 886DF6C91FF0FE4100055E47 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				88DC5A501FE8F48100425BDA /* meh */,
+				886DF6C71FF0FE4100055E47 /* meh */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
-		88DC5A4D1FE8F48100425BDA /* Sources */ = {
+		886DF6C41FF0FE4100055E47 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				88DC5A5E1FE9003E00425BDA /* main.c in Sources */,
+				886DF6DC1FF0FFC000055E47 /* meh.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		88DC5A561FE8F48100425BDA /* Debug */ = {
+		886DF6CD1FF0FE4100055E47 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -205,7 +193,7 @@
 			};
 			name = Debug;
 		};
-		88DC5A571FE8F48100425BDA /* Release */ = {
+		886DF6CE1FF0FE4100055E47 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -253,26 +241,26 @@
 			};
 			name = Release;
 		};
-		88DC5A591FE8F48100425BDA /* Debug */ = {
+		886DF6D01FF0FE4100055E47 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				HEADER_SEARCH_PATHS = "/usr/local/include/ImageMagick-7";
 				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
+					/usr/local/lib,
 					"/usr/local/Cellar/imagemagick/7.0.7-11/lib",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
 		};
-		88DC5A5A1FE8F48100425BDA /* Release */ = {
+		886DF6D11FF0FE4100055E47 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				HEADER_SEARCH_PATHS = "/usr/local/include/ImageMagick-7";
 				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
+					/usr/local/lib,
 					"/usr/local/Cellar/imagemagick/7.0.7-11/lib",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -282,25 +270,25 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		88DC5A4C1FE8F48100425BDA /* Build configuration list for PBXProject "meh" */ = {
+		886DF6C31FF0FE4100055E47 /* Build configuration list for PBXProject "meh" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				88DC5A561FE8F48100425BDA /* Debug */,
-				88DC5A571FE8F48100425BDA /* Release */,
+				886DF6CD1FF0FE4100055E47 /* Debug */,
+				886DF6CE1FF0FE4100055E47 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		88DC5A581FE8F48100425BDA /* Build configuration list for PBXNativeTarget "meh" */ = {
+		886DF6CF1FF0FE4100055E47 /* Build configuration list for PBXNativeTarget "meh" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				88DC5A591FE8F48100425BDA /* Debug */,
-				88DC5A5A1FE8F48100425BDA /* Release */,
+				886DF6D01FF0FE4100055E47 /* Debug */,
+				886DF6D11FF0FE4100055E47 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = 88DC5A491FE8F48100425BDA /* Project object */;
+	rootObject = 886DF6C01FF0FE4100055E47 /* Project object */;
 }
