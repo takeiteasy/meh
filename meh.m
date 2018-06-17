@@ -11,9 +11,9 @@
  *  - FIX: Handle images bigger than screen & preserve aspect ratio on resize
  *  - Different backends (Metal/OpenGL)
  *  - cURL integration
- *  - FIX: GIFs totally borked
- *  - Animated GIFs
+ *  - Animated GIFs (https://gist.github.com/urraka/685d9a6340b26b830d49)
  *  - EXIF info
+ *  - FIX: Offset origin when changing images
  *  - Slideshow
  *  - Handle alpha
  *  - Argument parsing
@@ -26,7 +26,7 @@
 #import <Foundation/Foundation.h>
 #import <Cocoa/Cocoa.h>
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include "3rdparty/stb_image.h"
 
 #define TOTAL_VALID_EXTS 12
 static const char* valid_exts[TOTAL_VALID_EXTS] = {
@@ -68,7 +68,6 @@ void sort(const char* arr[], int n) {
   qsort(arr, n, sizeof(const char*), sort_strcmp);
 }
 
-#define MEH_ANIMATE_RESIZE
 #if defined(MEH_ANIMATE_RESIZE)
 static BOOL animate_window = YES;
 #else
