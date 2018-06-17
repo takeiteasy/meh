@@ -23,23 +23,20 @@
 #include <dirent.h>
 #include <libgen.h>
 #include <string.h>
-#define MAGICKCORE_QUANTUM_DEPTH 32
-#define MAGICKCORE_HDRI_ENABLE 1
-#include <MagickWand/MagickWand.h>
 #import <Foundation/Foundation.h>
 #import <Cocoa/Cocoa.h>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
-static const char* valid_exts[15] = {
-  ".jpg", ".jpeg", ".png",
-  ".bmp", ".tga",  ".psd",
-  ".gif", ".hdr",  ".pic",
-  ".pnm", ".pgm",  ".tiff",
-  ".tga", ".raw",  ".svg"
+#define TOTAL_VALID_EXTS 12
+static const char* valid_exts[TOTAL_VALID_EXTS] = {
+  ".jpg", ".jpeg", ".png", ".bmp",
+  ".tga", ".psd",  ".gif", ".hdr",
+  ".pic", ".pnm", ".pgm",  ".tiff"
 };
 
 typedef struct {
-  MagickWand* mw;
-  size_t w, h;
+  int w, h, c;
   unsigned char* buf;
   char* path;
 } image_t;
@@ -52,24 +49,14 @@ image_t* load_img(const char* path) {
     fprintf(stderr, "malloc() failed: out of memory\n");
     [NSApp terminate:nil];
   }
-  MagickWand* wand = NewMagickWand();
-  if (MagickReadImage(wand, path) == MagickFalse) {
-    fprintf(stderr, "MagickReadImage(%s) failed: %s\n", path, MagickGetException(wand, NULL));
-    return NULL;
-  }
-  img->mw = wand;
-  img->w = MagickGetImageWidth(wand);
-  img->h = MagickGetImageHeight(wand);
-  img->buf = malloc(img->w * img->h * BPP);
+  
+  img->buf = stbi_load(path, &img->w, &img->h, &img->c, STBI_rgb_alpha);
   if (!img->buf) {
-    fprintf(stderr, "malloc() failed: out of memory\n");
+    fprintf(stderr, "stbi_load() failed\n");
     [NSApp terminate:nil];
   }
+  
   img->path = strdup(path);
-  if (MagickExportImagePixels(wand, 0, 0, img->w, img->h, "RGBA", CharPixel, img->buf) == MagickFalse) {
-    fprintf(stderr, "MagickExportImagePixels() failed: %s\n", MagickGetException(wand, NULL));
-    return NULL;
-  }
   return img;
 }
 
@@ -81,6 +68,7 @@ void sort(const char* arr[], int n) {
   qsort(arr, n, sizeof(const char*), sort_strcmp);
 }
 
+#define MEH_ANIMATE_RESIZE
 #if defined(MEH_ANIMATE_RESIZE)
 static BOOL animate_window = YES;
 #else
@@ -129,7 +117,7 @@ static BOOL animate_window = NO;
         continue;
       for (char* p = ext; *p; ++p)
         *p = tolower(*p);
-      for (i = 0; i < 15; ++i) {
+      for (i = 0; i < TOTAL_VALID_EXTS; ++i) {
         if (strcmp(ext, valid_exts[i]) == 0) {
           dir_imgs[j] = malloc(strlen(dir->d_name));
           strcpy(dir_imgs[j], dir->d_name);
@@ -157,7 +145,6 @@ static BOOL animate_window = NO;
 
 -(void)free_img {
   if (img) {
-    img->mw = DestroyMagickWand(img->mw);
     free(img->buf);
     free(img->path);
     free(img);
@@ -180,8 +167,6 @@ static BOOL animate_window = NO;
       break;
     case 0x26: // J
     case 0x28: // K
-      
-      break;
       if (!dir_imgs) {
         self->dir = dirname(img->path);
         [self populate_dir_imgs];
@@ -304,9 +289,6 @@ int create_window(const char* path) {
 }
 
 int main(int argc, const char* argv[]) {
-  MagickWandGenesis();
-  atexit(MagickWandTerminus);
-  
   @autoreleasepool {
     [NSApplication sharedApplication];
     [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];

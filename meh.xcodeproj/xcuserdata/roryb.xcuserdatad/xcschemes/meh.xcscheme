@@ -26,7 +26,6 @@
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
-      language = ""
       shouldUseLaunchSchemeArgsEnv = "YES">
       <Testables>
       </Testables>
@@ -46,7 +45,6 @@
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
-      language = ""
       launchStyle = "0"
       useCustomWorkingDirectory = "NO"
       ignoresPersistentStateOnLaunch = "NO"
@@ -70,7 +68,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/roryb/Pictures/8caf9d850f8390a9caf8d9e3594fcf2506b901a58da3da731cd369ce131fc786.png"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/roryb/Pictures/gayracula.jpg"
@@ -78,7 +76,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/roryb/Pictures/2fbb38acc99bb8fe4f7b065a5a0497c0cde2b7fea57623b3463323533d23ad4f.gif"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>
       <AdditionalOptions>

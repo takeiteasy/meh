@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		886DF6DC1FF0FFC000055E47 /* meh.m in Sources */ = {isa = PBXBuildFile; fileRef = 886DF6DB1FF0FFC000055E47 /* meh.m */; };
-		886DF6DE1FF0FFDE00055E47 /* libMagickWand-7.Q16HDRI.4.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 886DF6DD1FF0FFDE00055E47 /* libMagickWand-7.Q16HDRI.4.dylib */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -24,9 +23,10 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		884C6C5320D671370053790A /* libMagickWand-7.Q16HDRI.5.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libMagickWand-7.Q16HDRI.5.dylib"; path = "../../../../../usr/local/Cellar/imagemagick/7.0.7-28/lib/libMagickWand-7.Q16HDRI.5.dylib"; sourceTree = "<group>"; };
+		884C6C5520D67A6F0053790A /* stb_image.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stb_image.h; sourceTree = "<group>"; };
 		886DF6C81FF0FE4100055E47 /* meh */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = meh; sourceTree = BUILT_PRODUCTS_DIR; };
 		886DF6DB1FF0FFC000055E47 /* meh.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = meh.m; sourceTree = "<group>"; };
-		886DF6DD1FF0FFDE00055E47 /* libMagickWand-7.Q16HDRI.4.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libMagickWand-7.Q16HDRI.4.dylib"; path = "../../../../../usr/local/Cellar/imagemagick/7.0.7-11/lib/libMagickWand-7.Q16HDRI.4.dylib"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -34,7 +34,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				886DF6DE1FF0FFDE00055E47 /* libMagickWand-7.Q16HDRI.4.dylib in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -61,7 +60,7 @@
 		886DF6D21FF0FEB700055E47 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				886DF6DD1FF0FFDE00055E47 /* libMagickWand-7.Q16HDRI.4.dylib */,
+				884C6C5320D671370053790A /* libMagickWand-7.Q16HDRI.5.dylib */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -69,6 +68,7 @@
 		886DF6D81FF0FF3400055E47 /* meh */ = {
 			isa = PBXGroup;
 			children = (
+				884C6C5520D67A6F0053790A /* stb_image.h */,
 				886DF6DB1FF0FFC000055E47 /* meh.m */,
 			);
 			name = meh;
@@ -249,6 +249,7 @@
 				LIBRARY_SEARCH_PATHS = (
 					/usr/local/lib,
 					"/usr/local/Cellar/imagemagick/7.0.7-11/lib",
+					"/usr/local/Cellar/imagemagick/7.0.7-28/lib",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -262,6 +263,7 @@
 				LIBRARY_SEARCH_PATHS = (
 					/usr/local/lib,
 					"/usr/local/Cellar/imagemagick/7.0.7-11/lib",
+					"/usr/local/Cellar/imagemagick/7.0.7-28/lib",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
