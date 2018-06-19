@@ -11,7 +11,6 @@
  *  - FIX: Handle images bigger than screen & preserve aspect ratio on resize
  *  - Different backends (Metal/OpenGL)
  *  - cURL integration
- *  - Animated GIFs (https://gist.github.com/urraka/685d9a6340b26b830d49)
  *  - EXIF info
  *  - FIX: Offset origin when changing images
  *  - Slideshow
@@ -25,8 +24,10 @@
 #include <string.h>
 #import <Foundation/Foundation.h>
 #import <Cocoa/Cocoa.h>
+#define STBI_NO_GIF 1
 #define STB_IMAGE_IMPLEMENTATION
 #include "3rdparty/stb_image.h"
+#include "3rdparty/gif_load.h"
 
 #define TOTAL_VALID_EXTS 12
 static const char* valid_exts[TOTAL_VALID_EXTS] = {
@@ -36,12 +37,80 @@ static const char* valid_exts[TOTAL_VALID_EXTS] = {
 };
 
 typedef struct {
+  int w, h, delay, total_frames, cur_frame;
+  uint32_t** frames;
+} gif_info_t;
+
+typedef struct {
   int w, h, c;
-  unsigned char* buf;
+  gif_info_t* gif;
+  void* buf;
   char* path;
 } image_t;
 
 #define BPP 4
+
+int endswith(const char* haystack, const char* needle) {
+  size_t hlen = strlen(haystack);
+  size_t nlen = strlen(needle);
+  if(nlen > hlen)
+    return 0;
+  return (strcmp(&haystack[hlen - nlen], needle)) == 0;
+}
+
+#pragma pack(push, 1)
+typedef struct {
+  void *data, *draw;
+  gif_info_t* info;
+  unsigned long size;
+} gif_data_t;
+#pragma pack(pop)
+
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+
+void gif_frame(void *data, GIF_WHDR *whdr) {
+  uint32_t x, y, yoff, iter, ifin, dsrc, ddst;
+  gif_data_t* gif = (gif_data_t*)data;
+  
+#define BGRA(i) \
+  ((uint32_t)(whdr->cpal[whdr->bptr[i]].R << ((GIF_BIGE)? 8 : 16)) | \
+  (uint32_t)(whdr->cpal[whdr->bptr[i]].G << ((GIF_BIGE)? 16 : 8)) | \
+  (uint32_t)(whdr->cpal[whdr->bptr[i]].B << ((GIF_BIGE)? 24 : 0)) | \
+  ((whdr->bptr[i] != whdr->tran)? (GIF_BIGE)? 0xFF : 0xFF000000 : 0))
+  
+  unsigned long sz = (unsigned long)(whdr->xdim * whdr->ydim);
+  if (!whdr->ifrm) {
+    gif->draw = calloc(sizeof(uint32_t), sz);
+    gif->info->delay = (int)whdr->time;
+    gif->info->w = (int)whdr->xdim;
+    gif->info->h = (int)whdr->ydim;
+    gif->info->total_frames = (int)whdr->nfrm;
+    gif->info->cur_frame = 1;
+    gif->info->frames = calloc(sizeof(uint32_t*), gif->info->total_frames);
+  }
+  
+  uint32_t* pict = (uint32_t*)gif->draw;
+  ddst = (uint32_t)(whdr->xdim * whdr->fryo + whdr->frxo);
+  ifin = (!(iter = (whdr->intr)? 0 : 4))? 4 : 5; /** interlacing support **/
+  for (dsrc = (uint32_t)-1; iter < ifin; iter++)
+    for (yoff = 16U >> ((iter > 1)? iter : 1), y = (8 >> iter) & 7;
+         y < (uint32_t)whdr->fryd; y += yoff)
+      for (x = 0; x < (uint32_t)whdr->frxd; x++)
+        if (whdr->tran != (long)whdr->bptr[++dsrc])
+          pict[(uint32_t)whdr->xdim * y + x + ddst] = BGRA(dsrc);
+  if (whdr->mode == GIF_BKGD) /** cutting a hole for the next frame **/
+    for (y = 0; y < (uint32_t)whdr->fryd; y++)
+      for (x = 0; x < (uint32_t)whdr->frxd; x++)
+        pict[(uint32_t)whdr->xdim * y + x + ddst] = BGRA(whdr->bkgd);
+  
+  uint32* tmp = calloc(sizeof(uint32_t), sz);
+  memcpy(tmp, pict, sz * sizeof(uint32_t));
+  gif->info->frames[(int)whdr->ifrm] = tmp;
+  
+#undef BGRA
+}
 
 image_t* load_img(const char* path) {
   image_t* img = malloc(sizeof(image_t));
@@ -50,10 +119,38 @@ image_t* load_img(const char* path) {
     [NSApp terminate:nil];
   }
   
-  img->buf = stbi_load(path, &img->w, &img->h, &img->c, STBI_rgb_alpha);
-  if (!img->buf) {
-    fprintf(stderr, "stbi_load() failed\n");
-    [NSApp terminate:nil];
+  if (endswith(path, ".gif")) {
+    gif_data_t gif = {0};
+    int uuid = 0;
+    if ((uuid = open(path, O_RDONLY | O_BINARY)) <= 0) {
+      fprintf(stderr, "open() failed\n");
+      [NSApp terminate:nil];
+    }
+    
+    gif.size = (unsigned long)lseek(uuid, 0UL, SEEK_END);
+    lseek(uuid, 0UL, SEEK_SET);
+    read(uuid, gif.data = realloc(0, gif.size), gif.size);
+    close(uuid);
+    
+    if (uuid > 0) {
+      gif.info = malloc(sizeof(gif_info_t));
+      if (!GIF_Load(gif.data, (long)gif.size, gif_frame, 0, (void*)&gif, 0L) || !gif.info->frames) {
+        fprintf(stderr, "GIF_Load() failed\n");
+        [NSApp terminate:nil];
+      }
+      free(gif.draw);
+      img->gif = gif.info;
+      img->buf = img->gif->frames[0];
+      img->w = img->gif->w;
+      img->h = img->gif->h;
+    }
+  } else {
+    img->buf = (void*)stbi_load(path, &img->w, &img->h, &img->c, STBI_rgb_alpha);
+    if (!img->buf) {
+      fprintf(stderr, "stbi_load() failed: %s (%s)\n", stbi_failure_reason(), path);
+      [NSApp terminate:nil];
+    }
+    img->gif = NULL;
   }
   
   img->path = strdup(path);
@@ -138,13 +235,32 @@ static BOOL animate_window = NO;
 -(id)initWithFrame:(NSRect)frame Image:(image_t*)img {
   if (self = [super initWithFrame:frame]) {
     self->img = img;
+    [NSTimer scheduledTimerWithTimeInterval:.1f target:self selector:@selector(handleTimer:) userInfo:nil repeats:YES];
   }
   return self;
 }
 
+-(void)handleTimer:(NSTimer *)timer {
+  if (img && img->gif) {
+    img->gif->cur_frame += 1;
+    if (img->gif->cur_frame >= img->gif->total_frames)
+      img->gif->cur_frame = 0;
+    img->buf = img->gif->frames[img->gif->cur_frame];
+    [self setNeedsDisplay:YES];
+  }
+}
+
 -(void)free_img {
   if (img) {
-    free(img->buf);
+    if (img->gif) {
+      for (int i = 0; i < img->gif->total_frames; ++i)
+        free(img->gif->frames[i]);
+      free(img->gif->frames);
+      img->gif->frames = NULL;
+      free(img->gif);
+      img->gif = NULL;
+    } else
+      free(img->buf);
     free(img->path);
     free(img);
   }
@@ -218,7 +334,8 @@ static BOOL animate_window = NO;
   
   CGColorSpaceRef s = CGColorSpaceCreateDeviceRGB();
   CGDataProviderRef p = CGDataProviderCreateWithData(NULL, img->buf, img->w * img->h * BPP, NULL);
-  CGImageRef cgir = CGImageCreate(img->w, img->h, 8, 32, img->w * BPP, s, kCGBitmapByteOrderDefault, p, NULL, false, kCGRenderingIntentDefault);
+  
+  CGImageRef cgir = CGImageCreate(img->w, img->h, 8, 32, img->w * BPP, s, (img->gif ? kCGImageAlphaNoneSkipFirst | kCGBitmapByteOrder32Little : kCGBitmapByteOrderDefault), p, NULL, false, kCGRenderingIntentDefault);
   
   CGColorSpaceRelease(s);
   CGDataProviderRelease(p);
