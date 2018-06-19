@@ -22,7 +22,6 @@
 #include <dirent.h>
 #include <libgen.h>
 #include <string.h>
-#import <Foundation/Foundation.h>
 #import <Cocoa/Cocoa.h>
 #define STBI_NO_GIF 1
 #define STB_IMAGE_IMPLEMENTATION
@@ -112,51 +111,6 @@ void gif_frame(void *data, GIF_WHDR *whdr) {
 #undef BGRA
 }
 
-image_t* load_img(const char* path) {
-  image_t* img = malloc(sizeof(image_t));
-  if (!img) {
-    fprintf(stderr, "malloc() failed: out of memory\n");
-    [NSApp terminate:nil];
-  }
-  
-  if (endswith(path, ".gif")) {
-    gif_data_t gif = {0};
-    int uuid = 0;
-    if ((uuid = open(path, O_RDONLY | O_BINARY)) <= 0) {
-      fprintf(stderr, "open() failed\n");
-      [NSApp terminate:nil];
-    }
-    
-    gif.size = (unsigned long)lseek(uuid, 0UL, SEEK_END);
-    lseek(uuid, 0UL, SEEK_SET);
-    read(uuid, gif.data = realloc(0, gif.size), gif.size);
-    close(uuid);
-    
-    if (uuid > 0) {
-      gif.info = malloc(sizeof(gif_info_t));
-      if (!GIF_Load(gif.data, (long)gif.size, gif_frame, 0, (void*)&gif, 0L) || !gif.info->frames) {
-        fprintf(stderr, "GIF_Load() failed\n");
-        [NSApp terminate:nil];
-      }
-      free(gif.draw);
-      img->gif = gif.info;
-      img->buf = img->gif->frames[0];
-      img->w = img->gif->w;
-      img->h = img->gif->h;
-    }
-  } else {
-    img->buf = (void*)stbi_load(path, &img->w, &img->h, &img->c, STBI_rgb_alpha);
-    if (!img->buf) {
-      fprintf(stderr, "stbi_load() failed: %s (%s)\n", stbi_failure_reason(), path);
-      [NSApp terminate:nil];
-    }
-    img->gif = NULL;
-  }
-  
-  img->path = strdup(path);
-  return img;
-}
-
 static int sort_strcmp(const void* a, const void* b) {
   return strcmp(*(const char**)a, *(const char**)b);
 }
@@ -189,7 +143,9 @@ static BOOL animate_window = NO;
 }
 
 -(void)populate_dir_imgs;
+-(void)load_img:(const char*)path;
 -(void)free_img;
+-(void)force_resize;
 @end
 
 @implementation AppView
@@ -232,11 +188,10 @@ static BOOL animate_window = NO;
   closedir(d);
 }
 
--(id)initWithFrame:(NSRect)frame Image:(image_t*)img {
-  if (self = [super initWithFrame:frame]) {
-    self->img = img;
-    [NSTimer scheduledTimerWithTimeInterval:.1f target:self selector:@selector(handleTimer:) userInfo:nil repeats:YES];
-  }
+-(id)initWithFrame:(NSRect)frame Image:(const char*)path {
+  [self load_img:path];
+  [NSTimer scheduledTimerWithTimeInterval:.1f target:self selector:@selector(handleTimer:) userInfo:nil repeats:YES];
+  self = [super initWithFrame:frame];
   return self;
 }
 
@@ -248,6 +203,50 @@ static BOOL animate_window = NO;
     img->buf = img->gif->frames[img->gif->cur_frame];
     [self setNeedsDisplay:YES];
   }
+}
+
+-(void)load_img:(const char*)path {
+  img = malloc(sizeof(image_t));
+  if (!img) {
+    fprintf(stderr, "malloc() failed: out of memory\n");
+    [NSApp terminate:nil];
+  }
+  
+  if (endswith(path, ".gif")) {
+    gif_data_t gif = {0};
+    int uuid = 0;
+    if ((uuid = open(path, O_RDONLY | O_BINARY)) <= 0) {
+      fprintf(stderr, "open() failed\n");
+      [NSApp terminate:nil];
+    }
+    
+    gif.size = (unsigned long)lseek(uuid, 0UL, SEEK_END);
+    lseek(uuid, 0UL, SEEK_SET);
+    read(uuid, gif.data = realloc(0, gif.size), gif.size);
+    close(uuid);
+    
+    if (uuid > 0) {
+      gif.info = malloc(sizeof(gif_info_t));
+      if (!GIF_Load(gif.data, (long)gif.size, gif_frame, 0, (void*)&gif, 0L) || !gif.info->frames) {
+        fprintf(stderr, "GIF_Load() failed\n");
+        [NSApp terminate:nil];
+      }
+      free(gif.draw);
+      img->gif = gif.info;
+      img->buf = img->gif->frames[0];
+      img->w = img->gif->w;
+      img->h = img->gif->h;
+    }
+  } else {
+    img->buf = (void*)stbi_load(path, &img->w, &img->h, &img->c, STBI_rgb_alpha);
+    if (!img->buf) {
+      fprintf(stderr, "stbi_load() failed: %s (%s)\n", stbi_failure_reason(), path);
+      [NSApp terminate:nil];
+    }
+    img->gif = NULL;
+  }
+  
+  img->path = strdup(path);
 }
 
 -(void)free_img {
@@ -264,6 +263,15 @@ static BOOL animate_window = NO;
     free(img->path);
     free(img);
   }
+}
+
+-(void)force_resize {
+  NSRect frame = [[self window] frame];
+  frame.size.width  = img->w;
+  frame.size.height = img->h;
+  [[self window] setFrame:frame
+                  display:YES
+                  animate:animate_window];
 }
 
 -(BOOL)acceptsFirstResponder {
@@ -311,16 +319,11 @@ static BOOL animate_window = NO;
       snprintf(buffer, needed, "%s/%s", dir, dir_imgs[img_pos]);
       
       [self free_img];
-      if (!(img = load_img(buffer)))
+      [self load_img:buffer];
+      if (!img)
         [[self window] close];
       
-      NSRect frame = [[self window] frame];
-      frame.size.width  = img->w;
-      frame.size.height = img->h;
-      [[self window] setFrame:frame
-                      display:YES
-                      animate:animate_window];
-      [self setNeedsDisplay:YES];
+      [self force_resize];
       break;
     default:
       break;
@@ -369,11 +372,7 @@ int create_window(const char* path) {
   [appMenu addItem:quitMenuItem];
   [appMenuItem setSubmenu:appMenu];
   
-  image_t* img = load_img(path);
-  if (!img)
-    return 0;
-  
-  id window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, img->w, img->h)
+  id window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 0, 0)
                                           styleMask:NSWindowStyleMaskResizable | NSWindowStyleMaskTitled | NSWindowStyleMaskFullSizeContentView
                                             backing:NSBackingStoreBuffered
                                               defer:NO];
@@ -397,9 +396,10 @@ int create_window(const char* path) {
     [NSApp terminate:nil];
   }
   [NSApp setDelegate:app_del];
-  id app_view = [[AppView alloc] initWithFrame:NSMakeRect(0, 0, img->w, img->h)
-                                         Image:img];
+  id app_view = [[AppView alloc] initWithFrame:NSMakeRect(0, 0, 0, 0)
+                                         Image:path];
   [window setContentView:app_view];
+  [app_view force_resize];
   
   return 1;
 }
