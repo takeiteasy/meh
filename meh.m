@@ -161,18 +161,18 @@ static BOOL animate_window = NO;
   }
   
   int i = 0, j = 0, k = 1024;
-  struct dirent* dir;
-  while ((dir = readdir(d)) != NULL) {
-    if (dir->d_type == DT_REG) {
-      char* ext = strrchr(dir->d_name, '.');
+  struct dirent* dire;
+  while ((dire = readdir(d)) != NULL) {
+    if (dire->d_type == DT_REG) {
+      char* ext = strrchr(dire->d_name, '.');
       if (!ext)
         continue;
       for (char* p = ext; *p; ++p)
         *p = tolower(*p);
       for (i = 0; i < TOTAL_VALID_EXTS; ++i) {
         if (strcmp(ext, valid_exts[i]) == 0) {
-          dir_imgs[j] = malloc(strlen(dir->d_name));
-          strcpy(dir_imgs[j], dir->d_name);
+          dir_imgs[j] = malloc(strlen(dire->d_name));
+          strcpy(dir_imgs[j], dire->d_name);
           j += 1;
           if (j == k) {
             k += 1024;
@@ -314,9 +314,9 @@ static BOOL animate_window = NO;
       else if (img_pos == dir_imgs_len)
         img_pos = 0;
       
-      size_t needed = snprintf(NULL, 0, "%s/%s", dir, dir_imgs[img_pos]) + 1;
+      size_t needed = snprintf(NULL, 0, "%s/%s", self->dir, dir_imgs[img_pos]) + 1;
       char* buffer = malloc(needed);
-      snprintf(buffer, needed, "%s/%s", dir, dir_imgs[img_pos]);
+      snprintf(buffer, needed, "%s/%s", self->dir, dir_imgs[img_pos]);
       
       [self free_img];
       [self load_img:buffer];
