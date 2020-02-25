@@ -14,6 +14,8 @@
  *  - EXIF info
  *  - Slideshow
  *  - Argument parsing
+ *  - Zooming
+ *  - Drag and drop
  */
 
 #import <Cocoa/Cocoa.h>
@@ -24,8 +26,8 @@ static BOOL animate_window = YES;
 #else
 static BOOL animate_window = NO;
 #endif
-static NSArray* extensions = nil;
-static NSImage* error_img = nil;
+static NSArray *extensions = nil;
+static NSImage *error_img = nil;
 
 @interface AppDelegate : NSApplication {}
 @end
@@ -37,59 +39,28 @@ static NSImage* error_img = nil;
 }
 @end
 
-@interface AppView : NSView {
+@interface AppView : NSView {}
+@end
+
+@interface ImageView : NSImageView {
   NSImage *image;
+  AppView *subview;
   NSArray *files;
   NSString *files_dir;
   NSInteger files_cursor;
 }
-
 -(BOOL)loadImage:(NSString*)path;
+-(void)setErrorImg;
+-(BOOL)setImageIdx:(NSInteger)idx;
+-(BOOL)setImageNext;
+-(BOOL)setImagePrev;
 -(void)forceResize;
 @end
 
 @implementation AppView
--(id)initWithFrame:(NSRect)frame Image:(NSString*)path {
-  if (![self loadImage:path]) {
-    NSLog(@"ERROR: Failed to load \"%@\"", path);
-    return nil;
-  }
-  if (!(files = [[NSMutableArray alloc] init])) {
-    NSLog(@"ERROR: Out of memory");
-    return nil;
-  }
-  NSArray *dir_parts = [path pathComponents];
-  files_dir = [NSString pathWithComponents:[dir_parts subarrayWithRange:(NSRange){ 0, [dir_parts count] - 1}]];
-  NSArray *dirs = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:files_dir
-                                                                      error:NULL];
-  NSPredicate *predicate = [NSPredicate predicateWithFormat:@"ANY %@ CONTAINS[c] pathExtension", extensions];
-  files = [[dirs filteredArrayUsingPredicate:predicate] sortedArrayUsingSelector:@selector(localizedCaseInsensitiveCompare:)];
-  
-  files_cursor = -1;
-  [files enumerateObjectsUsingBlock:^(NSString *fname, NSUInteger idx, BOOL *stop) {
-    if ([fname isEqualToString:dir_parts[[dir_parts count] - 1]]) {
-      files_cursor = idx;
-      *stop = YES;
-    }
-  }];
-  if (files_cursor == -1) {
-    NSLog(@"ERROR: Could not find image in directory! Something went wrong");
-    return nil;
-  }
+-(id)initWithFrame:(NSRect)frame {
   self = [super initWithFrame:frame];
   return self;
-}
-
--(BOOL)loadImage:(NSString*)path {
-  return !!(image = [[NSImage alloc] initWithContentsOfFile:path]);
-}
-
--(void)forceResize {
-  NSRect frame = [[self window] frame];
-  frame.size = [image size];
-  [[self window] setFrame:frame
-                  display:YES
-                  animate:animate_window];
 }
 
 -(BOOL)acceptsFirstResponder {
@@ -106,23 +77,130 @@ static NSImage* error_img = nil;
     case 0x0C: // Q
       [[self window] close];
       break;
+    case 0x7b: // Arrow key left
+    case 0x7d: // Arrow key down
     case 0x26: // J
-      files_cursor -= 2;
+      [(ImageView*)[self superview] setImagePrev];
+      break;
+    case 0x7e: // Arrow key up
+    case 0x7c: // Arrow key right
     case 0x28: // K
-      files_cursor++;
-      if (files_cursor < 0)
-        files_cursor = [files count] - 1;
-      if (files_cursor >= [files count])
-        files_cursor = 0;
-      if (![self loadImage:[NSString stringWithFormat: @"%@/%@", files_dir, files[files_cursor]]]) {
-        NSLog(@"ERROR: Failed to load \"%@\"", files[files_cursor]);
-        image = error_img;
-      }
-      [self forceResize];
+      [(ImageView*)[self superview] setImageNext];
       break;
     default:
       break;
   }
+}
+@end
+
+@implementation ImageView
+-(id)initWithFrame:(NSRect)frame imagePath:(NSString*)path {
+  subview = [[AppView alloc] initWithFrame:frame];
+  if (![self loadImage:path])
+    return nil;
+  self = [super initWithFrame:frame];
+  [self addSubview:subview];
+  return self;
+}
+
+-(BOOL)loadImage:(NSString*)path {
+  if (![[NSFileManager defaultManager] fileExistsAtPath:path]) {
+    NSLog(@"ERROR: File \"%@\" doesn't exist!", path);
+    return NO;
+  }
+  NSArray *dir_parts = [path pathComponents];
+  NSString *dir_path = [NSString pathWithComponents:[dir_parts subarrayWithRange:(NSRange){ 0, [dir_parts count] - 1}]];
+  if (!(image = [[NSImage alloc] initWithContentsOfFile:path])) {
+    NSLog(@"ERROR: Failed to load \"%@\"", path);
+    if (![[NSFileManager defaultManager] fileExistsAtPath:dir_path])
+      return NO;
+    [self setErrorImg];
+  }
+  if (![dir_path isEqualToString:files_dir])
+    [self updateFileList:dir_path fileName:dir_parts[[dir_parts count] - 1]];
+  if ([[[path pathExtension] lowercaseString] isEqualToString:@"gif"]) {
+    
+  }
+  return YES;
+}
+
+-(BOOL)updateFileList:(NSString*)dir fileName:(NSString*)file {
+  if (!(files = [[NSMutableArray alloc] init])) {
+    NSLog(@"ERROR: Out of memory");
+    return NO;
+  }
+  NSArray *dirs = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:dir
+                                                                      error:NULL];
+  if (!extensions)
+    extensions = [NSArray arrayWithObjects:@"pdf", @"eps", @"epi", @"epsf", @"epsi", @"ps", @"tiff", @"tif", @"jpg", @"jpeg", @"jpe", @"gif", @"png", @"pict", @"pct", @"pic", @"bmp", @"BMPf", @"ico", @"icns", @"dng", @"cr2", @"crw", @"fpx", @"fpix", @"raf", @"dcr", @"ptng", @"pnt", @"mac", @"mrw", @"nef", @"orf", @"exr", @"psd", @"qti", @"qtif", @"hdr", @"sgi", @"srf", @"targa", @"tga", @"cur", @"xbm", nil];
+  NSPredicate *predicate = [NSPredicate predicateWithFormat:@"ANY %@ CONTAINS[c] pathExtension", extensions];
+  files = [[dirs filteredArrayUsingPredicate:predicate] sortedArrayUsingSelector:@selector(localizedCaseInsensitiveCompare:)];
+  
+  files_cursor = -1;
+  [files enumerateObjectsUsingBlock:^(NSString *fname, NSUInteger idx, BOOL *stop) {
+    if ([fname isEqualToString:file]) {
+      files_cursor = idx;
+      *stop = YES;
+    }
+  }];
+  if (files_cursor == -1) {
+    NSLog(@"ERROR: Could not find image in directory! Something went wrong");
+    return NO;
+  }
+  files_dir = dir;
+  return YES;
+}
+
+-(void)setErrorImg {
+  if (!error_img) {
+    NSData *data = [NSData dataWithBytes:(const void*)error_data length:sizeof(uint8_t) * error_data_size];
+    error_img = [[NSImage alloc] initWithData:data];
+  }
+  image = error_img;
+}
+
+-(BOOL)setImageIdx:(NSInteger)idx {
+  files_cursor = idx;
+  if (files_cursor < 0)
+    files_cursor = [files count] - 1;
+  if (files_cursor >= [files count])
+    files_cursor = 0;
+  if (![self loadImage:[NSString stringWithFormat: @"%@/%@", files_dir, files[files_cursor]]]) {
+    NSLog(@"ERROR: Failed to load \"%@\"", files[files_cursor]);
+    [self setErrorImg];
+  }
+  [self forceResize];
+  return YES;
+}
+
+-(BOOL)setImageNext {
+  return [self setImageIdx:files_cursor + 1];
+}
+
+-(BOOL)setImagePrev {
+  return [self setImageIdx:files_cursor - 1];
+}
+
+-(void)forceResize {
+  NSRect frame = [[self window] frame];
+  frame.size = [image size];
+  [[self window] setFrame:frame
+                  display:YES
+                  animate:animate_window];
+  [subview setFrame:NSMakeRect(0.f, 0.f, frame.size.width, frame.size.height)];
+  [self setNeedsDisplay:YES];
+}
+
+-(BOOL)acceptsFirstResponder {
+  return YES;
+}
+
+-(void)keyDown:(NSEvent*)event {
+  (void)event;
+}
+
+-(void)keyUp:(NSEvent*)event {
+  (void)event;
 }
 
 -(void)drawRect:(NSRect)dirtyRect {
@@ -130,14 +208,10 @@ static NSImage* error_img = nil;
 }
 @end
 
-int main(int argc, const char* argv[]) {
+int main(int argc, const char *argv[]) {
   @autoreleasepool {
     [NSApplication sharedApplication];
     [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
-    
-    extensions = [NSArray arrayWithObjects:@"pdf", @"eps", @"epi", @"epsf", @"epsi", @"ps", @"tiff", @"tif", @"jpg", @"jpeg", @"jpe", @"gif", @"png", @"pict", @"pct", @"pic", @"bmp", @"BMPf", @"ico", @"icns", @"dng", @"cr2", @"crw", @"fpx", @"fpix", @"raf", @"dcr", @"ptng", @"pnt", @"mac", @"mrw", @"nef", @"orf", @"exr", @"psd", @"qti", @"qtif", @"hdr", @"sgi", @"srf", @"targa", @"tga", @"cur", @"xbm", nil];
-    NSData* data = [NSData dataWithBytes:(const void*)error_data length:sizeof(uint8_t) * error_data_size];
-    error_img = [[NSImage alloc] initWithData:data];
     
     int n_windows = 0;
     for (int i = 1; i < argc; ++i) {
@@ -153,7 +227,8 @@ int main(int argc, const char* argv[]) {
       [appMenu addItem:quitMenuItem];
       [appMenuItem setSubmenu:appMenu];
       
-      id window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 0, 0)
+      CGSize screen = [[NSScreen mainScreen] frame].size;
+      id window = [[NSWindow alloc] initWithContentRect:NSMakeRect(screen.width / 2, screen.height / 2, 0.f, 0.f)
                                               styleMask:NSWindowStyleMaskResizable | NSWindowStyleMaskTitled | NSWindowStyleMaskFullSizeContentView
                                                 backing:NSBackingStoreBuffered
                                                   defer:NO];
@@ -176,13 +251,13 @@ int main(int argc, const char* argv[]) {
         [NSApp terminate:nil];
       }
       [NSApp setDelegate:app_del];
-      id app_view = [AppView alloc];
+      id app_view = [ImageView alloc];
       if (!app_view) {
         NSLog(@"ERROR: Out of memory");
         [NSApp terminate:nil];
       }
       if (![app_view initWithFrame:NSZeroRect
-                             Image:@(argv[i])])
+                         imagePath:@(argv[i])])
         [NSApp terminate:nil];
       [window setContentView:app_view];
       [app_view forceResize];

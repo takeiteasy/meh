@@ -243,6 +243,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+					"MEH_ANIMATE_RESIZE=1",
+				);
 				HEADER_SEARCH_PATHS = "/usr/local/include/ImageMagick-7";
 				LIBRARY_SEARCH_PATHS = (
 					/usr/local/lib,
