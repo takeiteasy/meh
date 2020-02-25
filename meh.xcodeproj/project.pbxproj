@@ -25,8 +25,7 @@
 /* Begin PBXFileReference section */
 		886DF6C81FF0FE4100055E47 /* meh */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = meh; sourceTree = BUILT_PRODUCTS_DIR; };
 		886DF6DB1FF0FFC000055E47 /* meh.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = meh.m; sourceTree = "<group>"; };
-		88804EAB20D69387001BAD36 /* stb_image.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = stb_image.h; path = 3rdparty/stb_image.h; sourceTree = "<group>"; };
-		88804EB220D870DA001BAD36 /* gif_load.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = gif_load.h; path = 3rdparty/gif_load.h; sourceTree = "<group>"; };
+		88A31F232405713600997474 /* error.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = error.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -67,9 +66,8 @@
 		886DF6D81FF0FF3400055E47 /* meh */ = {
 			isa = PBXGroup;
 			children = (
-				88804EB220D870DA001BAD36 /* gif_load.h */,
-				88804EAB20D69387001BAD36 /* stb_image.h */,
 				886DF6DB1FF0FFC000055E47 /* meh.m */,
+				88A31F232405713600997474 /* error.h */,
 			);
 			name = meh;
 			sourceTree = "<group>";
