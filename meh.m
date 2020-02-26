@@ -15,7 +15,6 @@
  *  - Slideshow
  *  - Argument parsing
  *  - Zooming
- *  - Open file dialog
  */
 
 #import <Cocoa/Cocoa.h>

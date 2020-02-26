@@ -1,7 +1,7 @@
 # meh
 feh for OS X, inspired by [DrabWeb/macfeh](https://github.com/DrabWeb/macfeh)
 
-See top of ```main.m``` for TODO list
+See top of ```meh.m``` for TODO list
 
 ## Shortcuts
 ```
