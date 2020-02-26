@@ -15,7 +15,6 @@
  *  - Slideshow
  *  - Argument parsing
  *  - Zooming
- *  - Drag and drop
  *  - Open file dialog
  */
 
@@ -32,6 +31,39 @@ static NSImage *error_img = nil;
 static BOOL first_window = YES;
 
 BOOL createWindow(NSString *path);
+
+BOOL alert(enum NSAlertStyle style, NSString *fmt, ...) {
+  NSAlert* alert = [[NSAlert alloc] init];
+  if (!alert) {
+    NSLog(@"ERROR: Out of memory");
+    return NO;
+  }
+  [alert setAlertStyle:style];
+  [alert addButtonWithTitle:@"OK"];
+  va_list args;
+  va_start(args, fmt);
+  NSString *msg = [[NSString alloc] initWithFormat:fmt arguments:args];
+  va_end(args);
+  if (!msg) {
+    NSLog(@"ERROR: Out of memory");
+    return NO;
+  }
+  [alert setMessageText:msg];
+  return [alert runModal] == NSAlertFirstButtonReturn;
+}
+
+NSArray* openDialog() {
+  NSOpenPanel* dialog = [NSOpenPanel openPanel];
+  if (!dialog) {
+    NSLog(@"ERROR: Out of memory");
+    return nil;
+  }
+  [dialog setAllowedFileTypes:extensions];
+  [dialog setAllowsMultipleSelection:YES];
+  [dialog setCanChooseFiles:YES];
+  [dialog setCanChooseDirectories:NO];
+  return  [dialog runModal] == NSModalResponseOK ? [dialog URLs] : nil;
+}
 
 @interface AppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate>
 @property (strong, nonatomic) NSWindow *window;
@@ -77,26 +109,28 @@ BOOL createWindow(NSString *path);
   if (![[pboard types] containsObject:NSFilenamesPboardType] || !([sender draggingSourceOperationMask] & NSDragOperationLink))
     return NO;
   NSArray *links = [pboard propertyListForType:NSFilenamesPboardType];
-  if (![self loadImage:links[0]])
-    [[self window] close];
-  if ([links count] > 1) {
-    for (int i = 1; i < [links count]; ++i) {
-      if (!createWindow(links[i]))
-        NSLog(@"ERROR: Failed to load \"%@\"", links[i]);
+  [links enumerateObjectsUsingBlock:^(NSString *fname, NSUInteger idx, BOOL *stop) {
+    if (!idx) {
+      if (![self loadImage:fname])
+        [[self window] close];
+      [self forceResize];
+    } else {
+      if (!createWindow(fname))
+        alert(NSAlertStyleCritical, @"ERROR: Failed to load \"%@\"", fname);
     }
-  }
+  }];
   return YES;
 }
 
 -(BOOL)loadImage:(NSString*)path {
   if (![[NSFileManager defaultManager] fileExistsAtPath:path]) {
-    NSLog(@"ERROR: File \"%@\" doesn't exist!", path);
+    alert(NSAlertStyleCritical, @"ERROR: File \"%@\" doesn't exist!", path);
     return NO;
   }
   NSArray *dir_parts = [path pathComponents];
   NSString *dir_path = [NSString pathWithComponents:[dir_parts subarrayWithRange:(NSRange){ 0, [dir_parts count] - 1}]];
   if (!(image = [[NSImage alloc] initWithContentsOfFile:path])) {
-    NSLog(@"ERROR: Failed to load \"%@\"", path);
+    alert(NSAlertStyleCritical, @"ERROR: Failed to load \"%@\"", path);
     if (![[NSFileManager defaultManager] fileExistsAtPath:dir_path])
       return NO;
     [self setErrorImg];
@@ -129,7 +163,7 @@ BOOL createWindow(NSString *path);
     }
   }];
   if (files_cursor == -1) {
-    NSLog(@"ERROR: Could not find image in directory! Something went wrong");
+    alert(NSAlertStyleCritical, @"ERROR: Could not find image in directory! Something went wrong");
     return NO;
   }
   files_dir = dir;
@@ -145,13 +179,15 @@ BOOL createWindow(NSString *path);
 }
 
 -(BOOL)setImageIdx:(NSInteger)idx {
+  if (!files)
+    return NO;
   files_cursor = idx;
   if (files_cursor < 0)
     files_cursor = [files count] - 1;
   if (files_cursor >= [files count])
     files_cursor = 0;
   if (![self loadImage:[NSString stringWithFormat: @"%@/%@", files_dir, files[files_cursor]]]) {
-    NSLog(@"ERROR: Failed to load \"%@\"", files[files_cursor]);
+    alert(NSAlertStyleCritical, @"ERROR: Failed to load \"%@\"", files[files_cursor]);
     [self setErrorImg];
   }
   [self forceResize];
@@ -268,7 +304,25 @@ BOOL createWindow(NSString *path);
     case 0x28: // K
       [(ImageView*)[self superview] setImageNext];
       break;
+    case 0x1f: { // O
+      NSArray *urls = openDialog();
+      if (!urls)
+        break;
+      ImageView *view = (ImageView*)[self superview];
+      [urls enumerateObjectsUsingBlock:^(NSURL *url, NSUInteger idx, BOOL *stop) {
+        if (!idx) {
+          if (![view loadImage:[url relativePath]])
+            [[self window] close];
+          [view forceResize];
+        } else {
+          if (!createWindow([url relativePath]))
+            alert(NSAlertStyleCritical, @"ERROR: Failed to load \"%@\"", [url relativePath]);
+        }
+      }];
+      break;
+    }
     default:
+//      printf("KEY: 0x%x\n", [event keyCode]);
       break;
   }
 }
@@ -312,7 +366,7 @@ int main(int argc, const char *argv[]) {
       if (createWindow(@(argv[i])))
         n_windows++;
     if (!n_windows) {
-      NSLog(@"No valid images passed through arguments\n");
+      alert(NSAlertStyleInformational, @"No valid images passed through arguments");
       [NSApp terminate:nil];
     }
     
