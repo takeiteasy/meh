@@ -51,12 +51,14 @@ BOOL alert(enum NSAlertStyle style, NSString *fmt, ...) {
   return [alert runModal] == NSAlertFirstButtonReturn;
 }
 
-NSArray* openDialog() {
+NSArray* openDialog(NSString *dir) {
   NSOpenPanel* dialog = [NSOpenPanel openPanel];
   if (!dialog) {
     NSLog(@"ERROR: Out of memory");
     return nil;
   }
+  if (dir)
+    [dialog setDirectoryURL:[NSURL fileURLWithPath:dir]];
   [dialog setAllowedFileTypes:extensions];
   [dialog setAllowsMultipleSelection:YES];
   [dialog setCanChooseFiles:YES];
@@ -84,6 +86,7 @@ NSArray* openDialog() {
 -(BOOL)setImageNext;
 -(BOOL)setImagePrev;
 -(void)forceResize;
+-(NSString*)fileDir;
 @end
 
 @implementation ImageView
@@ -211,6 +214,10 @@ NSArray* openDialog() {
   [self setNeedsDisplay:YES];
 }
 
+-(NSString*)fileDir {
+  return files_dir;
+}
+
 -(BOOL)acceptsFirstResponder {
   return YES;
 }
@@ -304,10 +311,10 @@ NSArray* openDialog() {
       [(ImageView*)[self superview] setImageNext];
       break;
     case 0x1f: { // O
-      NSArray *urls = openDialog();
+      ImageView *view = (ImageView*)[self superview];
+      NSArray *urls = openDialog([view fileDir]);
       if (!urls)
         break;
-      ImageView *view = (ImageView*)[self superview];
       [urls enumerateObjectsUsingBlock:^(NSURL *url, NSUInteger idx, BOOL *stop) {
         if (!idx) {
           if (![view loadImage:[url relativePath]])
