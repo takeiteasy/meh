@@ -9,7 +9,7 @@
 /* TODO/Ideas
  *  - Handle images bigger than screen
  *  - Preserve aspect ratio on resize
- *  - Slideshow
+ *  - Single window option
  *  - Argument parsing (Copy a bunch from feh)
  *  - More key shortcuts (Copy a bunch from feh)
  *  - Zooming
@@ -32,6 +32,9 @@ static BOOL animate_window = NO;
 #endif
 static NSArray *extensions = nil;
 static NSImage *error_img = nil;
+static BOOL slideshow = YES;
+static float slideshow_timer = 3.f;
+static BOOL slideshow_next = YES;
 static BOOL first_window = YES;
 BOOL createWindow(NSString *path);
 
@@ -76,7 +79,11 @@ NSArray* openDialog(NSString *dir) {
   NSArray *files;
   NSString *files_dir;
   NSInteger files_cursor;
+  BOOL timerPaused;
+  NSTimer *timer;
 }
+-(void)toggleSlideshow;
+-(void)handleTimer:(NSTimer*)timer;
 -(BOOL)loadImage:(NSString*)path;
 -(BOOL)loadURLImage:(NSURL*)url;
 -(void)setErrorImg;
@@ -98,7 +105,32 @@ NSArray* openDialog(NSString *dir) {
   [self setImageScaling:NSImageScaleAxesIndependently];
   [self addSubview:subview];
   [self registerForDraggedTypes:[NSArray arrayWithObjects:NSFilenamesPboardType, nil]];
+  if (slideshow) {
+    timerPaused = YES;
+    [self toggleSlideshow];
+  }
   return self;
+}
+
+-(void)toggleSlideshow {
+  if (timerPaused || !timer) {
+    timer = [NSTimer scheduledTimerWithTimeInterval:slideshow_timer
+                                             target:self
+                                           selector:@selector(handleTimer:)
+                                           userInfo:nil
+                                            repeats:YES];
+    timerPaused = NO;
+  } else {
+    [timer invalidate];
+    timerPaused = YES;
+  }
+}
+
+-(void)handleTimer:(NSTimer*)timer {
+  if (slideshow_next)
+    [self setImageNext];
+  else
+    [self setImagePrev];
 }
 
 -(NSDragOperation)draggingEntered:(id <NSDraggingInfo>)sender {
@@ -335,9 +367,13 @@ NSArray* openDialog(NSString *dir) {
       }];
       break;
     }
+    case 0x23: // P
+      if (slideshow)
+        [(ImageView*)[self superview] toggleSlideshow];
+      break;
     default:
 #if DEBUG
-      NSLog(@"Unrecognized key: 0x%xd", [event keyCode]);
+      NSLog(@"Unrecognized key: 0x%x", [event keyCode]);
 #endif
       break;
   }
