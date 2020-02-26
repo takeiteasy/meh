@@ -16,6 +16,7 @@
  *  - Argument parsing
  *  - Zooming
  *  - Drag and drop
+ *  - Open file dialog
  */
 
 #import <Cocoa/Cocoa.h>
@@ -28,15 +29,12 @@ static BOOL animate_window = NO;
 #endif
 static NSArray *extensions = nil;
 static NSImage *error_img = nil;
+static BOOL first_window = YES;
 
-@interface AppDelegate : NSApplication {}
-@end
+BOOL createWindow(NSString *path);
 
-@implementation AppDelegate
--(BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication*)app {
-  (void)app;
-  return YES;
-}
+@interface AppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate>
+@property (strong, nonatomic) NSWindow *window;
 @end
 
 @interface AppView : NSView {}
@@ -57,50 +55,37 @@ static NSImage *error_img = nil;
 -(void)forceResize;
 @end
 
-@implementation AppView
--(id)initWithFrame:(NSRect)frame {
-  self = [super initWithFrame:frame];
-  return self;
-}
-
--(BOOL)acceptsFirstResponder {
-  return YES;
-}
-
--(void)keyDown:(NSEvent*)event {
-  (void)event;
-}
-
--(void)keyUp:(NSEvent*)event {
-  switch ([event keyCode]) {
-    case 0x35: // ESC
-    case 0x0C: // Q
-      [[self window] close];
-      break;
-    case 0x7b: // Arrow key left
-    case 0x7d: // Arrow key down
-    case 0x26: // J
-      [(ImageView*)[self superview] setImagePrev];
-      break;
-    case 0x7e: // Arrow key up
-    case 0x7c: // Arrow key right
-    case 0x28: // K
-      [(ImageView*)[self superview] setImageNext];
-      break;
-    default:
-      break;
-  }
-}
-@end
-
 @implementation ImageView
 -(id)initWithFrame:(NSRect)frame imagePath:(NSString*)path {
-  subview = [[AppView alloc] initWithFrame:frame];
   if (![self loadImage:path])
     return nil;
+  subview = [[AppView alloc] initWithFrame:frame];
   self = [super initWithFrame:frame];
   [self addSubview:subview];
+  [self registerForDraggedTypes:[NSArray arrayWithObjects:NSFilenamesPboardType, nil]];
   return self;
+}
+
+-(NSDragOperation)draggingEntered:(id <NSDraggingInfo>)sender {
+  if ([[[sender draggingPasteboard] types] containsObject:NSFilenamesPboardType])
+    return [sender draggingSourceOperationMask] & NSDragOperationLink ? NSDragOperationLink : NSDragOperationCopy;
+  return NSDragOperationNone;
+}
+
+-(BOOL)performDragOperation:(id <NSDraggingInfo>)sender {
+  NSPasteboard *pboard = [sender draggingPasteboard];
+  if (![[pboard types] containsObject:NSFilenamesPboardType] || !([sender draggingSourceOperationMask] & NSDragOperationLink))
+    return NO;
+  NSArray *links = [pboard propertyListForType:NSFilenamesPboardType];
+  if (![self loadImage:links[0]])
+    [[self window] close];
+  if ([links count] > 1) {
+    for (int i = 1; i < [links count]; ++i) {
+      if (!createWindow(links[i]))
+        NSLog(@"ERROR: Failed to load \"%@\"", links[i]);
+    }
+  }
+  return YES;
 }
 
 -(BOOL)loadImage:(NSString*)path {
@@ -208,65 +193,127 @@ static NSImage *error_img = nil;
 }
 @end
 
+
+@implementation AppDelegate
+@synthesize window;
+
+-(id)initWithPath:(NSString*)path {
+  CGSize screen = [[NSScreen mainScreen] frame].size;
+  window = [[NSWindow alloc] initWithContentRect:NSMakeRect(screen.width / 2, screen.height / 2, 0.f, 0.f)
+                                          styleMask:NSWindowStyleMaskResizable | NSWindowStyleMaskTitled | NSWindowStyleMaskFullSizeContentView
+                                            backing:NSBackingStoreBuffered
+                                              defer:NO];
+  if (!window) {
+    NSLog(@"ERROR: Out of memory");
+    abort();
+  }
+  
+  [window setTitle:@""];
+  [window makeKeyAndOrderFront:nil];
+  [window setMovableByWindowBackground:YES];
+  [window setTitlebarAppearsTransparent:YES];
+  [[window standardWindowButton:NSWindowZoomButton] setHidden:YES];
+  [[window standardWindowButton:NSWindowCloseButton] setHidden:YES];
+  [[window standardWindowButton:NSWindowMiniaturizeButton] setHidden:YES];
+  [window setReleasedWhenClosed:NO];
+  
+  id app_view = [ImageView alloc];
+  if (!app_view) {
+    NSLog(@"ERROR: Out of memory");
+    abort();
+  }
+  if (![app_view initWithFrame:NSZeroRect
+                     imagePath:path]) {
+    [window close];
+    return nil;
+  }
+  [window setContentView:app_view];
+  [app_view forceResize];
+  return self;
+}
+
+-(BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication*)app {
+  (void)app;
+  return YES;
+}
+@end
+
+@implementation AppView
+-(id)initWithFrame:(NSRect)frame {
+  self = [super initWithFrame:frame];
+  return self;
+}
+
+-(BOOL)acceptsFirstResponder {
+  return YES;
+}
+
+-(void)keyDown:(NSEvent*)event {
+  (void)event;
+}
+
+-(void)keyUp:(NSEvent*)event {
+  switch ([event keyCode]) {
+    case 0x35: // ESC
+    case 0x0C: // Q
+      [[self window] close];
+      break;
+    case 0x7b: // Arrow key left
+    case 0x7d: // Arrow key down
+    case 0x26: // J
+      [(ImageView*)[self superview] setImagePrev];
+      break;
+    case 0x7e: // Arrow key up
+    case 0x7c: // Arrow key right
+    case 0x28: // K
+      [(ImageView*)[self superview] setImageNext];
+      break;
+    default:
+      break;
+  }
+}
+@end
+
+BOOL createWindow(NSString *path) {
+  if (first_window) {
+    id menubar = [NSMenu alloc];
+    id appMenuItem = [NSMenuItem alloc];
+    [menubar addItem:appMenuItem];
+    [NSApp setMainMenu:menubar];
+    id appMenu = [NSMenu alloc];
+    id quitTitle = [@"Quit " stringByAppendingString:[[NSProcessInfo processInfo] processName]];
+    id quitMenuItem = [[NSMenuItem alloc] initWithTitle:quitTitle
+                                                 action:@selector(terminate:)
+                                          keyEquivalent:@"q"];
+    [appMenu addItem:quitMenuItem];
+    [appMenuItem setSubmenu:appMenu];
+  }
+  
+  id app_del = [[AppDelegate alloc] initWithPath:path];
+  if (!app_del) {
+    NSLog(@"ERROR: Out of memory");
+    abort();
+  }
+  if (first_window) {
+    [NSApp setDelegate:app_del];
+    first_window = NO;
+  }
+  
+  return YES;
+}
+
 int main(int argc, const char *argv[]) {
   @autoreleasepool {
     [NSApplication sharedApplication];
     [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
     
     int n_windows = 0;
-    for (int i = 1; i < argc; ++i) {
-      id menubar = [NSMenu alloc];
-      id appMenuItem = [NSMenuItem alloc];
-      [menubar addItem:appMenuItem];
-      [NSApp setMainMenu:menubar];
-      id appMenu = [NSMenu alloc];
-      id quitTitle = [@"Quit " stringByAppendingString:[[NSProcessInfo processInfo] processName]];
-      id quitMenuItem = [[NSMenuItem alloc] initWithTitle:quitTitle
-                                                   action:@selector(terminate:)
-                                            keyEquivalent:@"q"];
-      [appMenu addItem:quitMenuItem];
-      [appMenuItem setSubmenu:appMenu];
-      
-      CGSize screen = [[NSScreen mainScreen] frame].size;
-      id window = [[NSWindow alloc] initWithContentRect:NSMakeRect(screen.width / 2, screen.height / 2, 0.f, 0.f)
-                                              styleMask:NSWindowStyleMaskResizable | NSWindowStyleMaskTitled | NSWindowStyleMaskFullSizeContentView
-                                                backing:NSBackingStoreBuffered
-                                                  defer:NO];
-      if (!window) {
-        NSLog(@"ERROR: Out of memory");
-        [NSApp terminate:nil];
-      }
-      
-      [window setTitle:@""];
-      [window makeKeyAndOrderFront:nil];
-      [window setMovableByWindowBackground:YES];
-      [window setTitlebarAppearsTransparent:YES];
-      [[window standardWindowButton:NSWindowZoomButton] setHidden:YES];
-      [[window standardWindowButton:NSWindowCloseButton] setHidden:YES];
-      [[window standardWindowButton:NSWindowMiniaturizeButton] setHidden:YES];
-      
-      id app_del = [AppDelegate alloc];
-      if (!app_del) {
-        NSLog(@"ERROR: Out of memory");
-        [NSApp terminate:nil];
-      }
-      [NSApp setDelegate:app_del];
-      id app_view = [ImageView alloc];
-      if (!app_view) {
-        NSLog(@"ERROR: Out of memory");
-        [NSApp terminate:nil];
-      }
-      if (![app_view initWithFrame:NSZeroRect
-                         imagePath:@(argv[i])])
-        [NSApp terminate:nil];
-      [window setContentView:app_view];
-      [app_view forceResize];
-      
-      n_windows++;
-    }
+    for (int i = 1; i < argc; ++i)
+      if (createWindow(@(argv[i])))
+        n_windows++;
     if (!n_windows) {
-      fprintf(stderr, "No valid images passed through arguments\n");
-      return 1;
+      NSLog(@"No valid images passed through arguments\n");
+      [NSApp terminate:nil];
     }
     
     [NSApp activateIgnoringOtherApps:YES];
