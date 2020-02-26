@@ -9,12 +9,13 @@
 /* TODO/Ideas
  *  - Handle images bigger than screen
  *  - Preserve aspect ratio on resize
- *  - Animated GIFs
  *  - Image from URL
- *  - EXIF info
  *  - Slideshow
- *  - Argument parsing
+ *  - Argument parsing (Copy a bunch from feh)
+ *  - More key shortcuts (Copy a bunch from feh)
  *  - Zooming
+ *  - Archives (Using XADMaster)
+ *  - Touch controls?
  */
 
 #import <Cocoa/Cocoa.h>
