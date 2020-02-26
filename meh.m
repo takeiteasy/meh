@@ -20,6 +20,11 @@
 #import <Cocoa/Cocoa.h>
 #include "error.h"
 
+#define MEM_CHECK(X) \
+if (!(X)) { \
+  NSLog(@"ERROR: Out of memory"); \
+  abort(); \
+}
 #if defined(MEH_ANIMATE_RESIZE)
 static BOOL animate_window = YES;
 #else
@@ -28,35 +33,25 @@ static BOOL animate_window = NO;
 static NSArray *extensions = nil;
 static NSImage *error_img = nil;
 static BOOL first_window = YES;
-
 BOOL createWindow(NSString *path);
 
 BOOL alert(enum NSAlertStyle style, NSString *fmt, ...) {
-  NSAlert* alert = [[NSAlert alloc] init];
-  if (!alert) {
-    NSLog(@"ERROR: Out of memory");
-    return NO;
-  }
+  NSAlert *alert = [[NSAlert alloc] init];
+  MEM_CHECK(alert);
   [alert setAlertStyle:style];
   [alert addButtonWithTitle:@"OK"];
   va_list args;
   va_start(args, fmt);
   NSString *msg = [[NSString alloc] initWithFormat:fmt arguments:args];
   va_end(args);
-  if (!msg) {
-    NSLog(@"ERROR: Out of memory");
-    return NO;
-  }
+  MEM_CHECK(msg);
   [alert setMessageText:msg];
   return [alert runModal] == NSAlertFirstButtonReturn;
 }
 
 NSArray* openDialog(NSString *dir) {
-  NSOpenPanel* dialog = [NSOpenPanel openPanel];
-  if (!dialog) {
-    NSLog(@"ERROR: Out of memory");
-    return nil;
-  }
+  NSOpenPanel *dialog = [NSOpenPanel openPanel];
+  MEM_CHECK(dialog);
   if (dir)
     [dialog setDirectoryURL:[NSURL fileURLWithPath:dir]];
   [dialog setAllowedFileTypes:extensions];
@@ -70,7 +65,9 @@ NSArray* openDialog(NSString *dir) {
 @property (strong, nonatomic) NSWindow *window;
 @end
 
-@interface AppView : NSView {}
+@interface AppView : NSView {
+  NSPoint dragPoint;
+}
 @end
 
 @interface ImageView : NSImageView {
@@ -91,10 +88,13 @@ NSArray* openDialog(NSString *dir) {
 
 @implementation ImageView
 -(id)initWithFrame:(NSRect)frame imagePath:(NSString*)path {
+  self = [super initWithFrame:frame];
   if (![self loadImage:path])
     return nil;
   subview = [[AppView alloc] initWithFrame:frame];
-  self = [super initWithFrame:frame];
+  [self setAnimates:YES];
+  [self setCanDrawSubviewsIntoLayer:YES];
+  [self setImageScaling:NSImageScaleAxesIndependently];
   [self addSubview:subview];
   [self registerForDraggedTypes:[NSArray arrayWithObjects:NSFilenamesPboardType, nil]];
   return self;
@@ -139,17 +139,12 @@ NSArray* openDialog(NSString *dir) {
   }
   if (![dir_path isEqualToString:files_dir])
     [self updateFileList:dir_path fileName:dir_parts[[dir_parts count] - 1]];
-  if ([[[path pathExtension] lowercaseString] isEqualToString:@"gif"]) {
-    
-  }
+  [self setImage:image];
   return YES;
 }
 
 -(BOOL)updateFileList:(NSString*)dir fileName:(NSString*)file {
-  if (!(files = [[NSMutableArray alloc] init])) {
-    NSLog(@"ERROR: Out of memory");
-    return NO;
-  }
+  MEM_CHECK(files = [[NSMutableArray alloc] init]);
   NSArray *dirs = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:dir
                                                                       error:NULL];
   if (!extensions)
@@ -229,10 +224,6 @@ NSArray* openDialog(NSString *dir) {
 -(void)keyUp:(NSEvent*)event {
   (void)event;
 }
-
--(void)drawRect:(NSRect)dirtyRect {
-  [image drawInRect:[self frame]];
-}
 @end
 
 
@@ -245,10 +236,7 @@ NSArray* openDialog(NSString *dir) {
                                           styleMask:NSWindowStyleMaskResizable | NSWindowStyleMaskTitled | NSWindowStyleMaskFullSizeContentView
                                             backing:NSBackingStoreBuffered
                                               defer:NO];
-  if (!window) {
-    NSLog(@"ERROR: Out of memory");
-    abort();
-  }
+  MEM_CHECK(window);
   
   [window setTitle:@""];
   [window makeKeyAndOrderFront:nil];
@@ -260,10 +248,7 @@ NSArray* openDialog(NSString *dir) {
   [window setReleasedWhenClosed:NO];
   
   id app_view = [ImageView alloc];
-  if (!app_view) {
-    NSLog(@"ERROR: Out of memory");
-    abort();
-  }
+  MEM_CHECK(app_view);
   if (![app_view initWithFrame:NSZeroRect
                      imagePath:path]) {
     [window close];
@@ -332,6 +317,24 @@ NSArray* openDialog(NSString *dir) {
       break;
   }
 }
+
+-(void)mouseDown:(NSEvent *)theEvent {
+  NSRect  windowFrame = [[self window] frame];
+  dragPoint = [NSEvent mouseLocation];
+  dragPoint.x -= windowFrame.origin.x;
+  dragPoint.y -= windowFrame.origin.y;
+}
+
+- (void)mouseDragged:(NSEvent *)theEvent {
+  NSRect  screenFrame = [[NSScreen mainScreen] frame];
+  NSRect  windowFrame = [self frame];
+  NSPoint currentPoint = [NSEvent mouseLocation];
+  NSPoint newOrigin = NSMakePoint(currentPoint.x - dragPoint.x,
+                                  currentPoint.y - dragPoint.y);
+  if ((newOrigin.y + windowFrame.size.height) > (screenFrame.origin.y + screenFrame.size.height))
+      newOrigin.y = screenFrame.origin.y + (screenFrame.size.height - windowFrame.size.height);
+  [[self window] setFrameOrigin:newOrigin];
+}
 @end
 
 BOOL createWindow(NSString *path) {
@@ -350,10 +353,7 @@ BOOL createWindow(NSString *path) {
   }
   
   id app_del = [[AppDelegate alloc] initWithPath:path];
-  if (!app_del) {
-    NSLog(@"ERROR: Out of memory");
-    abort();
-  }
+  MEM_CHECK(app_del);
   if (first_window) {
     [NSApp setDelegate:app_del];
     first_window = NO;
