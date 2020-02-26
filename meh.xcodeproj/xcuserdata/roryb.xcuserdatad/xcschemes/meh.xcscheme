@@ -67,6 +67,10 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
+            argument = "https://i.4cdn.org/vg/1582719895878s.jpg"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
             argument = "/Users/roryb/Pictures/8caf9d850f8390a9caf8d9e3594fcf2506b901a58da3da731cd369ce131fc786.png"
             isEnabled = "NO">
          </CommandLineArgument>
@@ -76,7 +80,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/roryb/Pictures/40e4bfd8f20f5f370f1125dbea504b5859ab6884bde4b59a3044c2c4f64feb12.jpg"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/roryb/Pictures/2fbb38acc99bb8fe4f7b065a5a0497c0cde2b7fea57623b3463323533d23ad4f.gif"

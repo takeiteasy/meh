@@ -9,7 +9,6 @@
 /* TODO/Ideas
  *  - Handle images bigger than screen
  *  - Preserve aspect ratio on resize
- *  - Image from URL
  *  - Slideshow
  *  - Argument parsing (Copy a bunch from feh)
  *  - More key shortcuts (Copy a bunch from feh)
@@ -79,6 +78,7 @@ NSArray* openDialog(NSString *dir) {
   NSInteger files_cursor;
 }
 -(BOOL)loadImage:(NSString*)path;
+-(BOOL)loadURLImage:(NSURL*)url;
 -(void)setErrorImg;
 -(BOOL)setImageIdx:(NSInteger)idx;
 -(BOOL)setImageNext;
@@ -125,9 +125,29 @@ NSArray* openDialog(NSString *dir) {
   return YES;
 }
 
+-(BOOL)loadURLImage:(NSURL*)url {
+  if (![extensions containsObject:[[[url absoluteString] pathExtension] lowercaseString]]) {
+    alert(NSAlertStyleCritical, @"ERROR: URL \"%@\" has invalid extension", [url absoluteString]);
+    return NO;
+  }
+  MEM_CHECK(image = [NSImage alloc]);
+  if (![image initWithContentsOfURL:url]) {
+    alert(NSAlertStyleCritical, @"ERROR: Failed to load image from URL \"%@\"");
+    return NO;
+  }
+  files = nil;
+  files_dir = nil;
+  files_cursor = -1;
+  [self setImage:image];
+  return YES;
+}
+
 -(BOOL)loadImage:(NSString*)path {
+  NSURL *url = [NSURL URLWithString:path];
+  if (url && [url scheme] && [url host])
+    return [self loadURLImage:url];
   if (![[NSFileManager defaultManager] fileExistsAtPath:path]) {
-    alert(NSAlertStyleCritical, @"ERROR: File \"%@\" doesn't exist!", path);
+    alert(NSAlertStyleCritical, @"ERROR: File \"%@\" doesn't exist", path);
     return NO;
   }
   NSArray *dir_parts = [path pathComponents];
@@ -148,8 +168,6 @@ NSArray* openDialog(NSString *dir) {
   MEM_CHECK(files = [[NSMutableArray alloc] init]);
   NSArray *dirs = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:dir
                                                                       error:NULL];
-  if (!extensions)
-    extensions = [NSArray arrayWithObjects:@"pdf", @"eps", @"epi", @"epsf", @"epsi", @"ps", @"tiff", @"tif", @"jpg", @"jpeg", @"jpe", @"gif", @"png", @"pict", @"pct", @"pic", @"bmp", @"BMPf", @"ico", @"icns", @"dng", @"cr2", @"crw", @"fpx", @"fpix", @"raf", @"dcr", @"ptng", @"pnt", @"mac", @"mrw", @"nef", @"orf", @"exr", @"psd", @"qti", @"qtif", @"hdr", @"sgi", @"srf", @"targa", @"tga", @"cur", @"xbm", nil];
   NSPredicate *predicate = [NSPredicate predicateWithFormat:@"ANY %@ CONTAINS[c] pathExtension", extensions];
   files = [[dirs filteredArrayUsingPredicate:predicate] sortedArrayUsingSelector:@selector(localizedCaseInsensitiveCompare:)];
   
@@ -171,7 +189,11 @@ NSArray* openDialog(NSString *dir) {
 -(void)setErrorImg {
   if (!error_img) {
     NSData *data = [NSData dataWithBytes:(const void*)error_data length:sizeof(uint8_t) * error_data_size];
-    error_img = [[NSImage alloc] initWithData:data];
+    MEM_CHECK(error_img = [NSImage alloc]);
+    if (![error_img initWithData:data]) {
+      NSLog(@"ERROR: Failed to recreate error image from memory");
+      abort();
+    }
   }
   image = error_img;
 }
@@ -314,7 +336,9 @@ NSArray* openDialog(NSString *dir) {
       break;
     }
     default:
-//      printf("KEY: 0x%x\n", [event keyCode]);
+#if DEBUG
+      NSLog(@"Unrecognized key: 0x%xd", [event keyCode]);
+#endif
       break;
   }
 }
@@ -351,6 +375,8 @@ BOOL createWindow(NSString *path) {
                                           keyEquivalent:@"q"];
     [appMenu addItem:quitMenuItem];
     [appMenuItem setSubmenu:appMenu];
+    
+    extensions = [NSArray arrayWithObjects:@"pdf", @"eps", @"epi", @"epsf", @"epsi", @"ps", @"tiff", @"tif", @"jpg", @"jpeg", @"jpe", @"gif", @"png", @"pict", @"pct", @"pic", @"bmp", @"BMPf", @"ico", @"icns", @"dng", @"cr2", @"crw", @"fpx", @"fpix", @"raf", @"dcr", @"ptng", @"pnt", @"mac", @"mrw", @"nef", @"orf", @"exr", @"psd", @"qti", @"qtif", @"hdr", @"sgi", @"srf", @"targa", @"tga", @"cur", @"xbm", nil];
   }
   
   id app_del = [[AppDelegate alloc] initWithPath:path];
