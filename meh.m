@@ -9,7 +9,6 @@
 /* TODO/Ideas
  *  - Handle images bigger than screen
  *  - Preserve aspect ratio on resize
- *  - Single window option
  *  - Argument parsing (Copy a bunch from feh)
  *  - More key shortcuts (Copy a bunch from feh)
  *  - Zooming
@@ -384,13 +383,17 @@ static ImageView *single_window_view = nil;
       if (!urls)
         break;
       [urls enumerateObjectsUsingBlock:^(NSURL *url, NSUInteger idx, BOOL *stop) {
-        if (!idx) {
-          if (![view loadImage:[url relativePath]])
-            [[self window] close];
-          [view forceResize];
-        } else {
-          if (!createWindow([url relativePath]))
-            alert(NSAlertStyleCritical, @"ERROR: Failed to load \"%@\"", [url relativePath]);
+        if (single_window)
+          [view addImageList:[url relativePath] setImage:(BOOL)!idx];
+        else {
+          if (!idx) {
+            if (![view loadImage:[url relativePath]])
+              [[self window] close];
+            [view forceResize];
+          } else {
+            if (!createWindow([url relativePath]))
+              alert(NSAlertStyleCritical, @"ERROR: Failed to load \"%@\"", [url relativePath]);
+          }
         }
       }];
       break;
@@ -462,12 +465,12 @@ int main(int argc, char *argv[]) {
       { "slide-time",    required_argument, 0, 't' },
       { "slide-prev",    no_argument,       0, 'p' },
       { "fancy-window",  no_argument,       0, 'f' },
-      { "single-window", no_argument,       0, 'w' },
+      { "single-window", no_argument,       0, '1' },
       { 0, 0, 0, 0 }
     };
     
     int opt, opt_idx = 0;
-    while ((opt = getopt_long(argc, argv, "st:pfw", options, &opt_idx)) != -1) {
+    while ((opt = getopt_long(argc, argv, "st:pf1", options, &opt_idx)) != -1) {
       switch (opt) {
         case 0:
           if (options[opt_idx].flag)
@@ -492,7 +495,7 @@ int main(int argc, char *argv[]) {
         case 'f':
           animate_window = YES;
           break;
-        case 'w':
+        case '1':
           single_window = YES;
           break;
         case '?':
