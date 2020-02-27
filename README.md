@@ -10,6 +10,7 @@ CMD+Q = Close all windows
 J, L Arrow, D Arrow = Prev image
 K, R Arrow, U Arrow = Next image
 O = Open file dialog
+P = Toggle slideshow
 ```
 
 ## Screenshot

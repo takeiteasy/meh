@@ -67,6 +67,10 @@
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
+            argument = "-s -t 1"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
             argument = "https://i.4cdn.org/vg/1582719895878s.jpg"
             isEnabled = "NO">
          </CommandLineArgument>

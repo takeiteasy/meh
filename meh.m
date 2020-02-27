@@ -15,8 +15,10 @@
  *  - Zooming
  *  - Archives (Using XADMaster)
  *  - Touch controls?
+ *  - Async loading
  */
 
+#include <getopt.h>
 #import <Cocoa/Cocoa.h>
 #include "error.h"
 
@@ -25,16 +27,14 @@ if (!(X)) { \
   NSLog(@"ERROR: Out of memory"); \
   abort(); \
 }
-#if defined(MEH_ANIMATE_RESIZE)
-static BOOL animate_window = YES;
-#else
 static BOOL animate_window = NO;
-#endif
 static NSArray *extensions = nil;
 static NSImage *error_img = nil;
-static BOOL slideshow = YES;
-static float slideshow_timer = 3.f;
-static BOOL slideshow_next = YES;
+static BOOL slideshow = NO;
+#define DEFAULT_SLIDESHOW_TIMER 3.f
+static float slideshow_timer = DEFAULT_SLIDESHOW_TIMER;
+static BOOL slideshow_prev = NO;
+static BOOL single_window = NO;
 static BOOL first_window = YES;
 BOOL createWindow(NSString *path);
 
@@ -127,10 +127,10 @@ NSArray* openDialog(NSString *dir) {
 }
 
 -(void)handleTimer:(NSTimer*)timer {
-  if (slideshow_next)
-    [self setImageNext];
-  else
+  if (slideshow_prev)
     [self setImagePrev];
+  else
+    [self setImageNext];
 }
 
 -(NSDragOperation)draggingEntered:(id <NSDraggingInfo>)sender {
@@ -380,7 +380,7 @@ NSArray* openDialog(NSString *dir) {
 }
 
 -(void)mouseDown:(NSEvent *)theEvent {
-  NSRect  windowFrame = [[self window] frame];
+  NSRect windowFrame = [[self window] frame];
   dragPoint = [NSEvent mouseLocation];
   dragPoint.x -= windowFrame.origin.x;
   dragPoint.y -= windowFrame.origin.y;
@@ -425,20 +425,68 @@ BOOL createWindow(NSString *path) {
   return YES;
 }
 
-int main(int argc, const char *argv[]) {
+int main(int argc, char *argv[]) {
   @autoreleasepool {
+    static struct option options[] = {
+      { "slideshow",     no_argument,       0, 's' },
+      { "slide-time",    required_argument, 0, 't' },
+      { "slide-prev",    no_argument,       0, 'p' },
+      { "fancy-window",  no_argument,       0, 'f' },
+      { "single-window", no_argument,       0, 'w' },
+      { 0, 0, 0, 0 }
+    };
+    
+    int opt, opt_idx = 0;
+    while ((opt = getopt_long(argc, argv, "st:pfw", options, &opt_idx)) != -1) {
+      switch (opt) {
+        case 0:
+          if (options[opt_idx].flag)
+            break;
+          printf ("option %s", options[opt_idx].name);
+          if (optarg)
+            printf (" with arg %s", optarg);
+          printf ("\n");
+          break;
+        case 't':
+          if ((slideshow_timer = atof(optarg)) <= 0) {
+            slideshow = NO;
+            slideshow_timer = DEFAULT_SLIDESHOW_TIMER;
+          }
+          break;
+        case 's':
+          slideshow = YES;
+          break;
+        case 'p':
+          slideshow_prev = YES;
+          break;
+        case 'f':
+          animate_window = YES;
+          break;
+        case 'w':
+          single_window = YES;
+          break;
+        case '?':
+          break;
+        default:
+          abort();
+      }
+    }
+    
     [NSApplication sharedApplication];
     [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
     
-    int n_windows = 0;
-    for (int i = 1; i < argc; ++i)
-      if (createWindow(@(argv[i])))
-        n_windows++;
-    if (!n_windows) {
-      alert(NSAlertStyleInformational, @"No valid images passed through arguments");
-      [NSApp terminate:nil];
+    if (optind < argc) {
+      int n_windows = 0;
+      while (optind < argc)
+        if (createWindow(@(argv[optind++])))
+          n_windows++;
+      if (n_windows)
+        goto SUCCESS;
     }
+    alert(NSAlertStyleInformational, @"No valid images passed through arguments");
+    return 1;
     
+  SUCCESS:
     [NSApp activateIgnoringOtherApps:YES];
     [NSApp run];
   }
