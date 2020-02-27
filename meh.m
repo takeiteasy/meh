@@ -76,7 +76,7 @@ NSArray* openDialog(NSString *dir) {
 @interface ImageView : NSImageView {
   NSImage *image;
   AppView *subview;
-  NSArray *files;
+  NSMutableArray *files;
   NSString *files_dir;
   NSInteger files_cursor;
   BOOL timerPaused;
@@ -85,6 +85,8 @@ NSArray* openDialog(NSString *dir) {
 -(void)toggleSlideshow;
 -(void)handleTimer:(NSTimer*)timer;
 -(BOOL)loadImage:(NSString*)path;
+-(BOOL)updateFileList:(NSString*)dir fileName:(NSString*)file;
+-(BOOL)addImageList:(NSString*)path setImage:(BOOL)set;
 -(BOOL)loadURLImage:(NSURL*)url;
 -(void)setErrorImg;
 -(BOOL)setImageIdx:(NSInteger)idx;
@@ -93,6 +95,7 @@ NSArray* openDialog(NSString *dir) {
 -(void)forceResize;
 -(NSString*)fileDir;
 @end
+static ImageView *single_window_view = nil;
 
 @implementation ImageView
 -(id)initWithFrame:(NSRect)frame imagePath:(NSString*)path {
@@ -145,13 +148,17 @@ NSArray* openDialog(NSString *dir) {
     return NO;
   NSArray *links = [pboard propertyListForType:NSFilenamesPboardType];
   [links enumerateObjectsUsingBlock:^(NSString *fname, NSUInteger idx, BOOL *stop) {
-    if (!idx) {
-      if (![self loadImage:fname])
-        [[self window] close];
-      [self forceResize];
-    } else {
-      if (!createWindow(fname))
-        alert(NSAlertStyleCritical, @"ERROR: Failed to load \"%@\"", fname);
+    if (single_window)
+      [self addImageList:fname setImage:(BOOL)!idx];
+    else {
+      if (!idx) {
+        if (![self loadImage:fname])
+          [[self window] close];
+        [self forceResize];
+      } else {
+        if (!createWindow(fname))
+          alert(NSAlertStyleCritical, @"ERROR: Failed to load \"%@\"", fname);
+      }
     }
   }];
   return YES;
@@ -190,8 +197,17 @@ NSArray* openDialog(NSString *dir) {
       return NO;
     [self setErrorImg];
   }
-  if (![dir_path isEqualToString:files_dir])
-    [self updateFileList:dir_path fileName:dir_parts[[dir_parts count] - 1]];
+  if (single_window) {
+    if (!files) {
+      MEM_CHECK(files = [[NSMutableArray alloc] init]);
+      [files addObject:path];
+      files_cursor = 0;
+      files_dir = nil;
+    }
+  } else {
+    if (![dir_path isEqualToString:files_dir])
+      [self updateFileList:dir_path fileName:dir_parts[[dir_parts count] - 1]];
+  }
   [self setImage:image];
   return YES;
 }
@@ -201,8 +217,7 @@ NSArray* openDialog(NSString *dir) {
   NSArray *dirs = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:dir
                                                                       error:NULL];
   NSPredicate *predicate = [NSPredicate predicateWithFormat:@"ANY %@ CONTAINS[c] pathExtension", extensions];
-  files = [[dirs filteredArrayUsingPredicate:predicate] sortedArrayUsingSelector:@selector(localizedCaseInsensitiveCompare:)];
-  
+  [files addObjectsFromArray:[[dirs filteredArrayUsingPredicate:predicate] sortedArrayUsingSelector:@selector(localizedCaseInsensitiveCompare:)]];
   files_cursor = -1;
   [files enumerateObjectsUsingBlock:^(NSString *fname, NSUInteger idx, BOOL *stop) {
     if ([fname isEqualToString:file]) {
@@ -214,7 +229,14 @@ NSArray* openDialog(NSString *dir) {
     alert(NSAlertStyleCritical, @"ERROR: Could not find image in directory! Something went wrong");
     return NO;
   }
-  files_dir = dir;
+  files_dir = [NSString stringWithFormat:@"%@/", dir];
+  return YES;
+}
+
+-(BOOL)addImageList:(NSString*)path setImage:(BOOL)set {
+  [files addObject:path];
+  if (set)
+    [self setImageIdx:[files count] - 1];
   return YES;
 }
 
@@ -238,9 +260,13 @@ NSArray* openDialog(NSString *dir) {
     files_cursor = [files count] - 1;
   if (files_cursor >= [files count])
     files_cursor = 0;
-  if (![self loadImage:[NSString stringWithFormat: @"%@/%@", files_dir, files[files_cursor]]]) {
+  if (![self loadImage:[NSString stringWithFormat: @"%@%@", files_dir ? files_dir : @"", files[files_cursor]]]) {
     alert(NSAlertStyleCritical, @"ERROR: Failed to load \"%@\"", files[files_cursor]);
     [self setErrorImg];
+  }
+  if (slideshow && !timerPaused) {
+    [self toggleSlideshow];
+    [self toggleSlideshow];
   }
   [self forceResize];
   return YES;
@@ -311,6 +337,8 @@ NSArray* openDialog(NSString *dir) {
   }
   [window setContentView:app_view];
   [app_view forceResize];
+  if (single_window)
+    single_window_view = app_view;
   return self;
 }
 
@@ -399,6 +427,8 @@ NSArray* openDialog(NSString *dir) {
 @end
 
 BOOL createWindow(NSString *path) {
+  if (single_window && !first_window)
+    return [single_window_view addImageList:path setImage:NO];
   if (first_window) {
     id menubar = [NSMenu alloc];
     id appMenuItem = [NSMenuItem alloc];
