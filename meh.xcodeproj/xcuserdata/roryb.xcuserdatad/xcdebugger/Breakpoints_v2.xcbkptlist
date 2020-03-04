@@ -14,8 +14,8 @@
             filePath = "meh.m"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "518"
-            endingLineNumber = "518"
+            startingLineNumber = "632"
+            endingLineNumber = "632"
             landmarkName = "main(argc, argv)"
             landmarkType = "9">
          </BreakpointContent>
@@ -23,32 +23,32 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "E62FA144-BC39-4C6B-9268-497A1D53EE4A"
+            uuid = "D7BBDBE2-E3F9-48A7-AF51-2EBD5C0A9DB3"
             shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "meh.m"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "258"
-            endingLineNumber = "258"
-            landmarkName = "-setImageIdx:"
+            startingLineNumber = "315"
+            endingLineNumber = "315"
+            landmarkName = "-updateFileList:fileName:"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "0384236F-7B67-4B75-9FF1-D872E5DC31E1"
+            uuid = "2BBB0B15-0868-4D9F-B800-8F47D2384DB6"
             shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "meh.m"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "240"
-            endingLineNumber = "240"
-            landmarkName = "-addImageList:setImage:"
+            startingLineNumber = "243"
+            endingLineNumber = "243"
+            landmarkName = "-updateFileList:fileName:"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

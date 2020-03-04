@@ -26,15 +26,43 @@ if (!(X)) { \
   NSLog(@"ERROR: Out of memory"); \
   abort(); \
 }
-static BOOL animate_window = NO;
-static NSArray *extensions = nil;
-static NSImage *error_img = nil;
-static BOOL slideshow = NO;
+
 #define DEFAULT_SLIDESHOW_TIMER 3.f
-static float slideshow_timer = DEFAULT_SLIDESHOW_TIMER;
-static BOOL slideshow_prev = NO;
-static BOOL single_window = NO;
-static BOOL first_window = YES;
+
+enum SORT_BY {
+  ALPHABETIC,
+  FSIZE,
+  MTIME,
+  CTIME,
+  FORMAT,
+  RANDOM
+};
+
+#define SETTINGS \
+  X(BOOL, animate_window, NO) \
+  X(NSArray*, extensions, nil) \
+  X(NSImage*, error_img, nil) \
+  X(BOOL, slideshow, NO) \
+  X(float, slideshow_timer, DEFAULT_SLIDESHOW_TIMER) \
+  X(BOOL, slideshow_prev, NO) \
+  X(BOOL, single_window, NO) \
+  X(BOOL, first_window, YES) \
+  X(BOOL, sort_files, NO) \
+  X(BOOL, reverse_sort, NO) \
+  X(enum SORT_BY, sort_type, ALPHABETIC) \
+
+static struct context {
+#define X(A, B, C) \
+  A B;
+SETTINGS
+#undef X
+} ctx = {
+#define X(A, B, C) \
+  .B = C,
+SETTINGS
+#undef X
+};
+
 BOOL createWindow(NSString *path);
 
 BOOL alert(enum NSAlertStyle style, NSString *fmt, ...) {
@@ -56,7 +84,7 @@ NSArray* openDialog(NSString *dir) {
   MEM_CHECK(dialog);
   if (dir)
     [dialog setDirectoryURL:[NSURL fileURLWithPath:dir]];
-  [dialog setAllowedFileTypes:extensions];
+  [dialog setAllowedFileTypes:ctx.extensions];
   [dialog setAllowsMultipleSelection:YES];
   [dialog setCanChooseFiles:YES];
   [dialog setCanChooseDirectories:NO];
@@ -107,7 +135,7 @@ static ImageView *single_window_view = nil;
   [self setImageScaling:NSImageScaleAxesIndependently];
   [self addSubview:subview];
   [self registerForDraggedTypes:[NSArray arrayWithObjects:NSFilenamesPboardType, nil]];
-  if (slideshow) {
+  if (ctx.slideshow) {
     timerPaused = YES;
     [self toggleSlideshow];
   }
@@ -116,7 +144,7 @@ static ImageView *single_window_view = nil;
 
 -(void)toggleSlideshow {
   if (timerPaused || !timer) {
-    timer = [NSTimer scheduledTimerWithTimeInterval:slideshow_timer
+    timer = [NSTimer scheduledTimerWithTimeInterval:ctx.slideshow_timer
                                              target:self
                                            selector:@selector(handleTimer:)
                                            userInfo:nil
@@ -129,7 +157,7 @@ static ImageView *single_window_view = nil;
 }
 
 -(void)handleTimer:(NSTimer*)timer {
-  if (slideshow_prev)
+  if (ctx.slideshow_prev)
     [self setImagePrev];
   else
     [self setImageNext];
@@ -147,7 +175,7 @@ static ImageView *single_window_view = nil;
     return NO;
   NSArray *links = [pboard propertyListForType:NSFilenamesPboardType];
   [links enumerateObjectsUsingBlock:^(NSString *fname, NSUInteger idx, BOOL *stop) {
-    if (single_window)
+    if (ctx.single_window)
       [self addImageList:fname setImage:(BOOL)!idx];
     else {
       if (!idx) {
@@ -164,7 +192,7 @@ static ImageView *single_window_view = nil;
 }
 
 -(BOOL)loadURLImage:(NSURL*)url {
-  if (![extensions containsObject:[[[url absoluteString] pathExtension] lowercaseString]]) {
+  if (![ctx.extensions containsObject:[[[url absoluteString] pathExtension] lowercaseString]]) {
     alert(NSAlertStyleCritical, @"ERROR: URL \"%@\" has invalid extension", [url absoluteString]);
     return NO;
   }
@@ -196,7 +224,7 @@ static ImageView *single_window_view = nil;
       return NO;
     [self setErrorImg];
   }
-  if (single_window) {
+  if (ctx.single_window) {
     if (!files) {
       MEM_CHECK(files = [[NSMutableArray alloc] init]);
       [files addObject:path];
@@ -212,11 +240,78 @@ static ImageView *single_window_view = nil;
 }
 
 -(BOOL)updateFileList:(NSString*)dir fileName:(NSString*)file {
+  static NSArray<NSURLResourceKey> *key = nil;
+  static NSString *descriptor_key = nil;
+  if (!key)
+    switch (ctx.sort_type) {
+      case ALPHABETIC:
+        key =  @[NSURLPathKey];
+        descriptor_key = @"path";
+        break;
+      case FSIZE:
+        key = @[NSURLFileSizeKey];
+        break;
+      case MTIME:
+        key = @[NSURLContentModificationDateKey];
+        break;
+      case CTIME:
+        key = @[NSURLCreationDateKey];
+        break;
+      case FORMAT:
+        descriptor_key = @"pathExtension";
+      default:
+        key = @[];
+        break;
+    }
+  NSError *err = nil;
+  NSMutableArray *all = [[[NSFileManager defaultManager] contentsOfDirectoryAtURL:[NSURL URLWithString:dir]
+                                                       includingPropertiesForKeys:key
+                                                                          options:0
+                                                                            error:&err] mutableCopy];
+  if (err) {
+    NSLog(@"ERROR %ld: %@", (long)[err code], [err localizedDescription]);
+    return NO;
+  }
+  
+  switch (ctx.sort_type) {
+    case FORMAT:
+    case ALPHABETIC: {
+      NSArray *tmp = [all sortedArrayUsingDescriptors:@[[NSSortDescriptor sortDescriptorWithKey:descriptor_key
+                                                                                      ascending:!ctx.reverse_sort
+                                                                                       selector:@selector(caseInsensitiveCompare:)]]];
+      MEM_CHECK(tmp);
+      all = [tmp mutableCopy];
+      break;
+    }
+    case FSIZE:
+    case MTIME:
+    case CTIME:
+      [all sortUsingComparator:^(NSURL *lURL, NSURL *rURL) {
+        NSDate *lDate, *rDate;
+        [lURL getResourceValue:&lDate
+                        forKey:key[0]
+                         error:nil];
+        [rURL getResourceValue:&rDate
+                        forKey:key[0]
+                         error:nil];
+        return ctx.reverse_sort ? [rDate compare:lDate] : [lDate compare:rDate];
+      }];
+      break;
+    case RANDOM:
+      for (NSInteger i = [all count] - 1; i > 0; i--)
+        [all exchangeObjectAtIndex:i
+                   withObjectAtIndex:(random() % ([all count] - i) + i)];
+      break;
+  }
+  
+  static NSPredicate *predicate = nil;
+  if (!predicate)
+    predicate = [NSPredicate predicateWithFormat:@"ANY %@ CONTAINS[c] pathExtension", ctx.extensions];
   MEM_CHECK(files = [[NSMutableArray alloc] init]);
-  NSArray *dirs = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:dir
-                                                                      error:NULL];
-  NSPredicate *predicate = [NSPredicate predicateWithFormat:@"ANY %@ CONTAINS[c] pathExtension", extensions];
-  [files addObjectsFromArray:[[dirs filteredArrayUsingPredicate:predicate] sortedArrayUsingSelector:@selector(localizedCaseInsensitiveCompare:)]];
+  [[all filteredArrayUsingPredicate:predicate] enumerateObjectsUsingBlock:^(NSURL *fname, NSUInteger idx, BOOL *stop) {
+    [files addObject:[fname lastPathComponent]];
+  }];
+  
   files_cursor = -1;
   [files enumerateObjectsUsingBlock:^(NSString *fname, NSUInteger idx, BOOL *stop) {
     if ([fname isEqualToString:file]) {
@@ -240,15 +335,15 @@ static ImageView *single_window_view = nil;
 }
 
 -(void)setErrorImg {
-  if (!error_img) {
+  if (!ctx.error_img) {
     NSData *data = [NSData dataWithBytes:(const void*)error_data length:sizeof(uint8_t) * error_data_size];
-    MEM_CHECK(error_img = [NSImage alloc]);
-    if (![error_img initWithData:data]) {
+    MEM_CHECK(ctx.error_img = [NSImage alloc]);
+    if (![ctx.error_img initWithData:data]) {
       NSLog(@"ERROR: Failed to recreate error image from memory");
       abort();
     }
   }
-  image = error_img;
+  image = ctx.error_img;
 }
 
 -(BOOL)setImageIdx:(NSInteger)idx {
@@ -263,7 +358,7 @@ static ImageView *single_window_view = nil;
     alert(NSAlertStyleCritical, @"ERROR: Failed to load \"%@\"", files[files_cursor]);
     [self setErrorImg];
   }
-  if (slideshow && !timerPaused) {
+  if (ctx.slideshow && !timerPaused) {
     [self toggleSlideshow];
     [self toggleSlideshow];
   }
@@ -284,7 +379,7 @@ static ImageView *single_window_view = nil;
   frame.size = [image size];
   [[self window] setFrame:frame
                   display:YES
-                  animate:animate_window];
+                  animate:ctx.animate_window];
   [subview setFrame:NSMakeRect(0.f, 0.f, frame.size.width, frame.size.height)];
   [self setNeedsDisplay:YES];
 }
@@ -336,7 +431,7 @@ static ImageView *single_window_view = nil;
   }
   [window setContentView:app_view];
   [app_view forceResize];
-  if (single_window)
+  if (ctx.single_window)
     single_window_view = app_view;
   return self;
 }
@@ -383,7 +478,7 @@ static ImageView *single_window_view = nil;
       if (!urls)
         break;
       [urls enumerateObjectsUsingBlock:^(NSURL *url, NSUInteger idx, BOOL *stop) {
-        if (single_window)
+        if (ctx.single_window)
           [view addImageList:[url relativePath] setImage:(BOOL)!idx];
         else {
           if (!idx) {
@@ -399,7 +494,7 @@ static ImageView *single_window_view = nil;
       break;
     }
     case 0x23: // P
-      if (slideshow)
+      if (ctx.slideshow)
         [(ImageView*)[self superview] toggleSlideshow];
       break;
     default:
@@ -417,7 +512,7 @@ static ImageView *single_window_view = nil;
   dragPoint.y -= windowFrame.origin.y;
 }
 
-- (void)mouseDragged:(NSEvent *)theEvent {
+-(void)mouseDragged:(NSEvent *)theEvent {
   NSRect  screenFrame = [[NSScreen mainScreen] frame];
   NSRect  windowFrame = [self frame];
   NSPoint currentPoint = [NSEvent mouseLocation];
@@ -430,9 +525,9 @@ static ImageView *single_window_view = nil;
 @end
 
 BOOL createWindow(NSString *path) {
-  if (single_window && !first_window)
+  if (ctx.single_window && !ctx.first_window)
     return [single_window_view addImageList:path setImage:NO];
-  if (first_window) {
+  if (ctx.first_window) {
     id menubar = [NSMenu alloc];
     id appMenuItem = [NSMenuItem alloc];
     [menubar addItem:appMenuItem];
@@ -445,16 +540,25 @@ BOOL createWindow(NSString *path) {
     [appMenu addItem:quitMenuItem];
     [appMenuItem setSubmenu:appMenu];
     
-    extensions = [NSArray arrayWithObjects:@"pdf", @"eps", @"epi", @"epsf", @"epsi", @"ps", @"tiff", @"tif", @"jpg", @"jpeg", @"jpe", @"gif", @"png", @"pict", @"pct", @"pic", @"bmp", @"BMPf", @"ico", @"icns", @"dng", @"cr2", @"crw", @"fpx", @"fpix", @"raf", @"dcr", @"ptng", @"pnt", @"mac", @"mrw", @"nef", @"orf", @"exr", @"psd", @"qti", @"qtif", @"hdr", @"sgi", @"srf", @"targa", @"tga", @"cur", @"xbm", nil];
+    ctx.extensions = [NSArray arrayWithObjects:@"pdf", @"eps", @"epi",@"epsf",
+                                               @"epsi", @"ps", @"tiff", @"tif",
+                                               @"jpg", @"jpeg", @"jpe", @"gif",
+                                               @"png", @"pict", @"pct", @"pic",
+                                               @"bmp", @"BMPf", @"ico", @"icns",
+                                               @"dng", @"cr2", @"crw", @"fpx",
+                                               @"fpix", @"raf", @"dcr", @"ptng",
+                                               @"pnt", @"mac", @"mrw", @"nef",
+                                               @"orf", @"exr", @"psd", @"qti",
+                                               @"qtif", @"hdr", @"sgi", @"srf",
+                                               @"targa", @"tga", @"cur", @"xbm", nil];
   }
   
   id app_del = [[AppDelegate alloc] initWithPath:path];
   MEM_CHECK(app_del);
-  if (first_window) {
+  if (ctx.first_window) {
     [NSApp setDelegate:app_del];
-    first_window = NO;
+    ctx.first_window = NO;
   }
-  
   return YES;
 }
 
@@ -466,12 +570,15 @@ int main(int argc, char *argv[]) {
       { "slide-prev",    no_argument,       0, 'p' },
       { "fancy-window",  no_argument,       0, 'f' },
       { "single-window", no_argument,       0, '1' },
+      { "sort",          optional_argument, 0, 'S' },
+      { "reverse-sort",  optional_argument, 0, 'r' },
       { 0, 0, 0, 0 }
     };
     
     int opt, opt_idx = 0;
-    while ((opt = getopt_long(argc, argv, "st:pf1", options, &opt_idx)) != -1) {
+    while ((opt = getopt_long(argc, argv, "st:pf1r:S:", options, &opt_idx)) != -1) {
       switch (opt) {
+        case '?':
         case 0:
           if (options[opt_idx].flag)
             break;
@@ -481,25 +588,48 @@ int main(int argc, char *argv[]) {
           printf ("\n");
           break;
         case 't':
-          if ((slideshow_timer = atof(optarg)) <= 0) {
-            slideshow = NO;
-            slideshow_timer = DEFAULT_SLIDESHOW_TIMER;
+          if ((ctx.slideshow_timer = atof(optarg)) <= 0) {
+            ctx.slideshow = NO;
+            ctx.slideshow_timer = DEFAULT_SLIDESHOW_TIMER;
           }
           break;
         case 's':
-          slideshow = YES;
+          ctx.slideshow = YES;
           break;
         case 'p':
-          slideshow_prev = YES;
+          ctx.slideshow_prev = YES;
           break;
         case 'f':
-          animate_window = YES;
+          ctx.animate_window = YES;
           break;
         case '1':
-          single_window = YES;
+          ctx.single_window = YES;
           break;
-        case '?':
+        case 'r':
+          ctx.reverse_sort = YES;
+        case 'S': {
+          ctx.sort_files = YES;
+          if (!optarg)
+            break;
+          NSString *arg = [[NSString stringWithString:@(optarg)] lowercaseString];
+          if ([arg isEqualToString:@"alphabetic"])
+            ctx.sort_type = ALPHABETIC;
+          else if ([arg isEqualToString:@"fsize"])
+            ctx.sort_type = FSIZE;
+          else if ([arg isEqualToString:@"mtime"])
+            ctx.sort_type = MTIME;
+          else if ([arg isEqualToString:@"ctime"])
+            ctx.sort_type = CTIME;
+          else if ([arg isEqualToString:@"format"])
+            ctx.sort_type = FORMAT;
+          else if ([arg isEqualToString:@"random"])
+            ctx.sort_type = RANDOM;
+          else {
+            NSLog(@"%s: invalid argument '%s' option -- %c", argv[0], optarg, opt);
+            abort();
+          }
           break;
+        }
         default:
           abort();
       }
