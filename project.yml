@@ -1,0 +1,22 @@
+name: meh
+
+options:
+  bundleIdPrefix: io.github.takeiteasy
+  createIntermediateGroups: true
+  deploymentTarget:
+    macOS: "12.0"
+
+settings:
+  GCC_C_LANGUAGE_STANDARD: c11
+  CLANG_WARN_DOCUMENTATION_COMMENTS: false
+
+targets:
+  meh:
+    type: application
+    platform: macOS
+    info:
+      path: Info.plist
+    sources:
+      - path: meh.m
+    dependencies:
+        - sdk: Cocoa.framework
