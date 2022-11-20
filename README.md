@@ -8,12 +8,11 @@
 
 ## TODO
 
-- [ ] CLI Arguments
+- [X] ~~CLI Arguments~~
 - [ ] Error handling
 - [ ] Drag + drop
 - [ ] Slideshow mode
 - [ ] Clamp window size to screen size
-- [ ] Preserve aspect ratio on resize option
 - [ ] Zooming
 - [ ] Archive support
 - [ ] Touch controls

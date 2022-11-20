@@ -2,4 +2,7 @@
 *.xcodeproj/
 *.plist
 *_old.*
-lenna.png
+*.png
+meh
+*.app
+*.plist

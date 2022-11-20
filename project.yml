@@ -12,7 +12,7 @@ settings:
 
 targets:
   meh:
-    type: application
+    type: tool
     platform: macOS
     info:
       path: Info.plist

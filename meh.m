@@ -26,16 +26,20 @@
 #import <Cocoa/Cocoa.h>
 #include <getopt.h>
 
+#define SORT_TYPES              \
+    X("alphabetic", ALPHABETIC) \
+    X("fsize", FSIZE)           \
+    X("mtime", MTIME)           \
+    X("ctime", CTIME)           \
+    X("format", FORMAT)         \
+    X("random", RANDOM)
 typedef enum {
-    ALPHABETIC,
-    FSIZE,
-    MTIME,
-    CTIME,
-    FORMAT,
-    RANDOM
+#define X(_, E) SORT_##E,
+    SORT_TYPES
+#undef X
 } FileSortType;
 
-static FileSortType settingSortBy = ALPHABETIC;
+static FileSortType settingSortBy = SORT_ALPHABETIC;
 static BOOL settingReverseSort = NO;
 
 static NSArray *validExtensions = @[@"pdf", @"eps", @"epi",@"epsf",
@@ -49,6 +53,17 @@ static NSArray *validExtensions = @[@"pdf", @"eps", @"epi",@"epsf",
                                     @"orf", @"exr", @"psd", @"qti",
                                     @"qtif", @"hdr", @"sgi", @"srf",
                                     @"targa", @"tga", @"cur", @"xbm"];
+
+static struct option long_options[] = {
+    {"sort", required_argument, NULL, 's'},
+    {"reverse", no_argument, NULL, 'r'},
+    {"help", no_argument, NULL, 'h'},
+    {NULL, 0, NULL, 0}
+};
+
+static void usage(void) {
+    // TODO: Write usage
+}
 
 static NSString* fileExtension(NSString *path) {
     return [[path pathExtension] lowercaseString];
@@ -76,15 +91,24 @@ static NSArray* openDialog(NSString *dir) {
     NSOpenPanel *dialog = [NSOpenPanel openPanel];
     if (dir)
         [dialog setDirectoryURL:[NSURL fileURLWithPath:dir]];
-#if __MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_12_0
+    // TODO: Unsured how setAllowedContentTypes works, this still works for now
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     [dialog setAllowedFileTypes:validExtensions];
-#else
-    [dialog setAllowedContentTypes:validExtensions];
-#endif
+#pragma clang diagnostic pop
     [dialog setAllowsMultipleSelection:YES];
     [dialog setCanChooseFiles:YES];
     [dialog setCanChooseDirectories:NO];
-    return  [dialog runModal] == NSModalResponseOK ? [dialog URLs] : nil;
+    if ([dialog runModal] != NSModalResponseOK)
+        return nil;
+    NSMutableArray *result = [[NSMutableArray alloc] init];
+    for (NSURL *url in [dialog URLs])
+        [result addObject:[url path]];
+    return result;
+}
+
+static NSString* resolvePath(NSString *path) {
+    return [[NSURL fileURLWithPath:[path stringByExpandingTildeInPath]] path];
 }
 
 @interface AppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate> {
@@ -175,20 +199,20 @@ static NSArray* openDialog(NSString *dir) {
     static NSString *descKey = nil;
     if (!key)
         switch (settingSortBy) {
-            case ALPHABETIC:
+            case SORT_ALPHABETIC:
                 key =  @[NSURLPathKey];
                 descKey = @"path";
                 break;
-            case FSIZE:
+            case SORT_FSIZE:
                 key = @[NSURLFileSizeKey];
                 break;
-            case MTIME:
+            case SORT_MTIME:
                 key = @[NSURLContentModificationDateKey];
                 break;
-            case CTIME:
+            case SORT_CTIME:
                 key = @[NSURLCreationDateKey];
                 break;
-            case FORMAT:
+            case SORT_FORMAT:
                 descKey = @"pathExtension";
             default:
                 key = @[];
@@ -204,17 +228,17 @@ static NSArray* openDialog(NSString *dir) {
         PANIC("%ld: %@", (long)[err code], [err localizedDescription]);
     
     switch (settingSortBy) {
-        case FORMAT:
-        case ALPHABETIC: {
+        case SORT_FORMAT:
+        case SORT_ALPHABETIC: {
             NSArray *tmp = [all sortedArrayUsingDescriptors:@[[NSSortDescriptor sortDescriptorWithKey:descKey
                                                                                             ascending:!settingReverseSort
                                                                                              selector:@selector(caseInsensitiveCompare:)]]];
             all = [tmp mutableCopy];
             break;
         }
-        case FSIZE:
-        case MTIME:
-        case CTIME:
+        case SORT_FSIZE:
+        case SORT_MTIME:
+        case SORT_CTIME:
             [all sortUsingComparator:^(NSURL *lURL, NSURL *rURL) {
                 NSDate *lDate, *rDate;
                 [lURL getResourceValue:&lDate
@@ -226,7 +250,7 @@ static NSArray* openDialog(NSString *dir) {
                 return settingReverseSort ? [rDate compare:lDate] : [lDate compare:rDate];
             }];
             break;
-        case RANDOM:
+        case SORT_RANDOM:
             for (NSInteger i = [all count] - 1; i > 0; i--)
                 [all exchangeObjectAtIndex:i
                          withObjectAtIndex:(random() % ([all count] - i) + i)];
@@ -238,7 +262,6 @@ static NSArray* openDialog(NSString *dir) {
         predicate = [NSPredicate predicateWithFormat:@"ANY %@ MATCHES[c] pathExtension", validExtensions];
     files = [[NSMutableArray alloc] init];
     [[all filteredArrayUsingPredicate:predicate] enumerateObjectsUsingBlock:^(NSURL *fname, NSUInteger idx, BOOL *stop) {
-        NSLog(@"%@ %@", fname, [fname lastPathComponent]);
         [files addObject:[fname lastPathComponent]];
     }];
     
@@ -253,7 +276,17 @@ static NSArray* openDialog(NSString *dir) {
         PANIC("Couldn't file \"%@\" in \"%@\"", file, dir);
 }
 
+-(BOOL)checkImage:(NSString*)path {
+    if (![validExtensions containsObject:fileExtension(path)])
+        return NO;
+    if (![[NSFileManager defaultManager] fileExistsAtPath:path])
+        return NO;
+    return YES;
+}
+
 -(BOOL)loadImage:(NSString*)path {
+    if (![self checkImage:path])
+        return NO;
     if (!(image = [[NSImage alloc] initWithContentsOfFile:path]))
         return NO;
     [self setImage:image];
@@ -319,8 +352,10 @@ static NSArray* openDialog(NSString *dir) {
     
     id view = [AppView alloc];
     if (![view initWithFrame:NSZeroRect
-                   imagePath:path])
+                   imagePath:path]) {
         WARN("Failed to load image (\"%@\")", path);
+        return NO;
+    }
     [window setContentView:view];
     [view forceResize];
     
@@ -347,6 +382,8 @@ static NSArray* openDialog(NSString *dir) {
         
         if (!paths)
             paths = openDialog(nil);
+        if (!paths)
+            return nil;
         
         for (NSString *path in [paths valueForKeyPath:@"@distinctUnionOfObjects.self"])
             [self createNewWindow:path];
@@ -364,12 +401,59 @@ static NSArray* openDialog(NSString *dir) {
 @end
 
 int main(int argc, char *argv[]) {
+    int opt;
+    extern int optind;
+    extern char* optarg;
+    extern int optopt;
+    while ((opt = getopt_long(argc, argv, "hrs:", long_options, NULL)) != -1) {
+        switch (opt) {
+            case 's': {
+                NSString *sort = [@(optarg) lowercaseString];
+#define X(S, E) \
+                if ([sort isEqualToString:@S]) { \
+                    settingSortBy = SORT_##E; \
+                    break; \
+                }
+                SORT_TYPES
+#undef X
+                printf("ERROR! Invalid sort argument \"%s\"\n", optarg);
+                usage();
+                return EXIT_FAILURE;
+            }
+            case 'r':
+                settingReverseSort = YES;
+                break;
+            case 'h':
+                usage();
+                return EXIT_SUCCESS;
+            case ':':
+                printf("ERROR: \"-%c\" requires an value!\n", optopt);
+                usage();
+                return EXIT_FAILURE;
+            case '?':
+                printf("ERROR: Unknown argument \"-%c\"\n", optopt);
+                usage();
+                return EXIT_FAILURE;
+
+        }
+    }
+    
     @autoreleasepool {
+        NSMutableArray *files = nil;
+        if (optind < argc) {
+            files = [[NSMutableArray alloc] init];
+            while (optind < argc)
+                [files addObject:resolvePath(@(argv[optind++]))];
+        }
+        
         [NSApplication sharedApplication];
         [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
-        [NSApp setDelegate:[[AppDelegate new] initWithPaths:@[@"/Users/george/git/meh/lenna.png"]]];
+        AppDelegate *appDel = [[AppDelegate new] initWithPaths:files];
+        if (!appDel)
+            return EXIT_FAILURE;
+        [NSApp setDelegate:appDel];
         [NSApp activateIgnoringOtherApps:YES];
         [NSApp run];
     }
-    return 0;
+    return EXIT_SUCCESS;
 }
