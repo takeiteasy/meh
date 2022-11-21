@@ -38,7 +38,7 @@ File types: pdf, eps, epi, epsf, epsi, ps, tiff, tif, jpg, jpeg, jpe, gif, png, 
 - [X] ~~CLI Arguments~~
 - [X] ~~Error handling~~
 - [X] ~~Drag + drop~~
-- [ ] Slideshow mode
+- [X] ~~Slideshow mode~~
 - [ ] Clamp window size to screen size
 - [ ] Touch controls
 - [ ] Zooming
