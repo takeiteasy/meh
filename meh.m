@@ -42,17 +42,17 @@ typedef enum {
 static FileSortType settingSortBy = SORT_ALPHABETIC;
 static BOOL settingReverseSort = NO;
 
-static NSArray *validExtensions = @[@"pdf", @"eps", @"epi",@"epsf",
-                                    @"epsi", @"ps", @"tiff", @"tif",
-                                    @"jpg", @"jpeg", @"jpe", @"gif",
-                                    @"png", @"pict", @"pct", @"pic",
-                                    @"bmp", @"BMPf", @"ico", @"icns",
-                                    @"dng", @"cr2", @"crw", @"fpx",
-                                    @"fpix", @"raf", @"dcr", @"ptng",
-                                    @"pnt", @"mac", @"mrw", @"nef",
-                                    @"orf", @"exr", @"psd", @"qti",
-                                    @"qtif", @"hdr", @"sgi", @"srf",
-                                    @"targa", @"tga", @"cur", @"xbm"];
+static NSArray *validExtensions = @[@"pdf",   @"eps",  @"epi",  @"epsf",
+                                    @"epsi",  @"ps",   @"tiff", @"tif",
+                                    @"jpg",   @"jpeg", @"jpe",  @"gif",
+                                    @"png",   @"pict", @"pct",  @"pic",
+                                    @"bmp",   @"bmpf", @"ico",  @"icns",
+                                    @"dng",   @"cr2",  @"crw",  @"fpx",
+                                    @"fpix",  @"raf",  @"dcr",  @"ptng",
+                                    @"pnt",   @"mac",  @"mrw",  @"nef",
+                                    @"orf",   @"exr",  @"psd",  @"qti",
+                                    @"qtif",  @"hdr",  @"sgi",  @"srf",
+                                    @"targa", @"tga",  @"cur",  @"xbm"];
 
 static struct option long_options[] = {
     {"sort", required_argument, NULL, 's'},
@@ -62,8 +62,27 @@ static struct option long_options[] = {
 };
 
 static void usage(void) {
-    // TODO: Write usage
+    puts("usage: meh [files...] [options]\n");
+    puts("\t-s/--sort\tSpecify file list sort\t[default: alphabetic]");
+    printf("\t* Sorting options: ");
+#define X(S, _) S,
+    const char *sortingOptions[] = { SORT_TYPES NULL };
+#undef X
+    int sizeOfSortingOptions = (sizeof(sortingOptions) / sizeof(const char*)) - 1;
+    for (int i = 0; i < sizeOfSortingOptions; i++)
+        printf("%s%s", sortingOptions[i], i == sizeOfSortingOptions - 1 ? "\n" : ", ");
+    puts("\t-r/--reverse\tEnable reversed sorting");
+    puts("\t-h/--help\tPrint this message");
+    printf("\nSupported file types: ");
+    for (int i = 0; i < [validExtensions count]; i++)
+        printf("%s%s", [validExtensions[i] UTF8String], i == [validExtensions count] - 1 ? "\n" : ", ");
 }
+
+#if defined(DEBUG)
+#define LOG(fmt, ...) NSLog(@"DEBUG: " fmt, __VA_ARGS__)
+#else
+#define LOG(...)
+#endif
 
 static NSString* fileExtension(NSString *path) {
     return [[path pathExtension] lowercaseString];
@@ -91,7 +110,8 @@ static NSArray* openDialog(NSString *dir) {
     NSOpenPanel *dialog = [NSOpenPanel openPanel];
     if (dir)
         [dialog setDirectoryURL:[NSURL fileURLWithPath:dir]];
-    // TODO: Unsured how setAllowedContentTypes works, this still works for now
+    // TODO: setAllowedFileTypes deprecated for setAllowedContentTypes in 12.0
+    //       Unsured how setAllowedContentTypes works, this still works for now
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
     [dialog setAllowedFileTypes:validExtensions];
@@ -114,6 +134,7 @@ static NSString* resolvePath(NSString *path) {
 @interface AppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate> {
     NSMutableArray *windows;
 }
+-(BOOL)createNewWindow:(NSString*)path;
 @end
 
 @interface AppSubView : NSView {
@@ -127,9 +148,11 @@ static NSString* resolvePath(NSString *path) {
     NSString *dir, *file;
     NSMutableArray *files;
     NSInteger fileIdx;
+    BOOL fileError;
+    NSTimer *errorUpdate;
 }
--(BOOL)previousImage;
--(BOOL)nextImage;
+-(void)previousImage;
+-(void)nextImage;
 @end
 
 @implementation AppSubView
@@ -166,9 +189,7 @@ static NSString* resolvePath(NSString *path) {
             [VIEW nextImage];
             break;
         default:
-#if DEBUG
-            NSLog(@"DEBUG: Unrecognized key: 0x%x", [event keyCode]);
-#endif
+            LOG("Unrecognized key: 0x%x", [event keyCode]);
             break;
     }
 }
@@ -184,9 +205,11 @@ static NSString* resolvePath(NSString *path) {
         dir = [NSString pathWithComponents:[dirParts subarrayWithRange:(NSRange){ 0, [dirParts count] - 1}]];
         file = dirParts[[dirParts count] - 1];
         [self updateFilesList];
+        fileError = NO;
         
         if (![self loadImage:path])
             return nil;
+        
         [self setAnimates:YES];
         [self setCanDrawSubviewsIntoLayer:YES];
         [self setImageScaling:NSImageScaleAxesIndependently];
@@ -290,27 +313,30 @@ static NSString* resolvePath(NSString *path) {
     if (!(image = [[NSImage alloc] initWithContentsOfFile:path]))
         return NO;
     [self setImage:image];
+    [self forceResize];
     return YES;
 }
 
--(BOOL)setImageIdx:(NSInteger)idx {
+-(void)setImageIdx:(NSInteger)idx {
     if (idx < 0)
         idx = [files count] - 1;
     if (idx >= [files count])
         idx = 0;
     fileIdx = idx;
-    if (![self loadImage:[NSString stringWithFormat:@"%@/%@", dir, files[fileIdx]]])
-        return NO;
-    [self forceResize];
-    return YES;
+    NSString *path = [NSString stringWithFormat:@"%@/%@", dir, files[fileIdx]];
+    fileError = ![self loadImage:path];
+    if (fileError) {
+        WARN("Failed to load \"%@\"", path);
+        [self enableErrorImage];
+    }
 }
 
--(BOOL)previousImage {
-    return [self setImageIdx:fileIdx - 1];
+-(void)previousImage {
+    [self setImageIdx:fileIdx - 1];
 }
 
--(BOOL)nextImage {
-    return [self setImageIdx:fileIdx + 1];
+-(void)nextImage {
+    [self setImageIdx:fileIdx + 1];
 }
 
 -(void)forceResize {
@@ -321,6 +347,50 @@ static NSString* resolvePath(NSString *path) {
                     animate:YES];
     [subView setFrame:NSMakeRect(0.f, 0.f, frame.size.width, frame.size.height)];
     [self setNeedsDisplay:YES];
+}
+
+-(void)enableErrorImage {
+    fileError = YES;
+    errorUpdate = [NSTimer scheduledTimerWithTimeInterval:1.
+                                                   target:self
+                                                 selector:@selector(updateErrorImage)
+                                                 userInfo:nil
+                                                  repeats:YES];
+    [self setNeedsDisplay:YES];
+}
+
+-(void)disableErrorImage {
+    fileError = NO;
+    [errorUpdate invalidate];
+}
+
+-(void)updateErrorImage {
+    if (!fileError)
+        [self disableErrorImage];
+    [self setNeedsDisplay:YES];
+}
+
+-(void)drawRect:(NSRect)dirtyRect {
+    if (!fileError) {
+        [super drawRect:dirtyRect];
+        return;
+    }
+    
+    CGContextRef ctx = (CGContextRef)[[NSGraphicsContext currentContext] CGContext];
+    int *buffer = malloc(dirtyRect.size.width * dirtyRect.size.height * sizeof(int));
+    for (int i = 0; i < dirtyRect.size.width * dirtyRect.size.height; i++) {
+        int c = rand() % 256;
+        buffer[i] = ((unsigned char)c << 16) | ((unsigned char)c << 8) | ((unsigned char)c);
+    }
+    CGColorSpaceRef s = CGColorSpaceCreateDeviceRGB();
+    CGDataProviderRef p = CGDataProviderCreateWithData(NULL, buffer, dirtyRect.size.width * dirtyRect.size.height * 4, NULL);
+    CGImageRef img = CGImageCreate(dirtyRect.size.width, dirtyRect.size.height, 8, 32, dirtyRect.size.width * 4, s, kCGImageAlphaNoneSkipFirst | kCGBitmapByteOrder32Little, p, NULL, 0, kCGRenderingIntentDefault);
+    CGContextDrawImage(ctx, dirtyRect, img);
+    CGColorSpaceRelease(s);
+    CGDataProviderRelease(p);
+    CGImageRelease(img);
+    free(buffer);
+    CGContextFlush(ctx);
 }
 @end
 

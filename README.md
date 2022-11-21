@@ -6,18 +6,31 @@
   <img src="https://raw.githubusercontent.com/takeiteasy/meh/master/screenshot.png">
 </p>
 
+```
+usage: meh [files...] [options]
+
+    -s/--sort    Specify file list sort    [default: alphabetic]
+    * Sorting options: alphabetic, fsize, mtime, ctime, format, random
+    -r/--reverse    Enable reversed sorting
+    -h/--help    Print this message
+
+Supported file types: pdf, eps, epi, epsf, epsi, ps, tiff, tif, jpg, jpeg, jpe, gif, png, pict, pct, pic, bmp, bmpf, ico, icns, dng, cr2, crw, fpx, fpix, raf, dcr, ptng, pnt, mac, mrw, nef, orf, exr, psd, qti, qtif, hdr, sgi, srf, targa, tga, cur, xbm
+```
+
 ## TODO
 
+- [X] ~~Image cycling~~
+- [X] ~~File list sorting~~
 - [X] ~~CLI Arguments~~
-- [ ] Error handling
+- [X] ~~Error handling~~
 - [ ] Drag + drop
 - [ ] Slideshow mode
 - [ ] Clamp window size to screen size
+- [ ] Touch controls
 - [ ] Zooming
 - [ ] Archive support
-- [ ] Touch controls
 - [ ] Load images from URL
-- [ ] Makefile + README
+- [ ] Finish Makefile + README
 
 ## License
 ```
