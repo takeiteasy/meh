@@ -9,12 +9,21 @@
 ```
 usage: meh [files...] [options]
 
+
+Arguments:
     -s/--sort    Specify file list sort    [default: alphabetic]
     * Sorting options: alphabetic, fsize, mtime, ctime, format, random
     -r/--reverse    Enable reversed sorting
     -h/--help    Print this message
 
-Supported file types: pdf, eps, epi, epsf, epsi, ps, tiff, tif, jpg, jpeg, jpe, gif, png, pict, pct, pic, bmp, bmpf, ico, icns, dng, cr2, crw, fpx, fpix, raf, dcr, ptng, pnt, mac, mrw, nef, orf, exr, psd, qti, qtif, hdr, sgi, srf, targa, tga, cur, xbm
+Keys:
+    - CMD+Q -- Quit applications
+    - ESC/Q -- Close window
+    - J/Arrow Left/Arrow Down -- Previous image
+    - K/Arrow Right/Arrow Up -- Next image
+    - O -- Open file dialog
+
+File types: pdf, eps, epi, epsf, epsi, ps, tiff, tif, jpg, jpeg, jpe, gif, png, pict, pct, pic, bmp, bmpf, ico, icns, dng, cr2, crw, fpx, fpix, raf, dcr, ptng, pnt, mac, mrw, nef, orf, exr, psd, qti, qtif, hdr, sgi, srf, targa, tga, cur, xbm
 ```
 
 ## TODO
@@ -23,7 +32,7 @@ Supported file types: pdf, eps, epi, epsf, epsi, ps, tiff, tif, jpg, jpeg, jpe, 
 - [X] ~~File list sorting~~
 - [X] ~~CLI Arguments~~
 - [X] ~~Error handling~~
-- [ ] Drag + drop
+- [X] ~~Drag + drop~~
 - [ ] Slideshow mode
 - [ ] Clamp window size to screen size
 - [ ] Touch controls

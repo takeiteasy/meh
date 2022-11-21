@@ -62,7 +62,8 @@ static struct option long_options[] = {
 };
 
 static void usage(void) {
-    puts("usage: meh [files...] [options]\n");
+    puts("usage: meh [files...] [options]");
+    puts("\n\nArguments:");
     puts("\t-s/--sort\tSpecify file list sort\t[default: alphabetic]");
     printf("\t* Sorting options: ");
 #define X(S, _) S,
@@ -73,7 +74,13 @@ static void usage(void) {
         printf("%s%s", sortingOptions[i], i == sizeOfSortingOptions - 1 ? "\n" : ", ");
     puts("\t-r/--reverse\tEnable reversed sorting");
     puts("\t-h/--help\tPrint this message");
-    printf("\nSupported file types: ");
+    puts("\nKeys:");
+    puts("\t- CMD+Q -- Quit applications");
+    puts("\t- ESC/Q -- Close window");
+    puts("\t- J/Arrow Left/Arrow Down -- Previous image");
+    puts("\t- K/Arrow Right/Arrow Up -- Next image");
+    puts("\t- O -- Open file dialog");
+    printf("\nFile types: ");
     for (int i = 0; i < [validExtensions count]; i++)
         printf("%s%s", [validExtensions[i] UTF8String], i == [validExtensions count] - 1 ? "\n" : ", ");
 }
@@ -83,6 +90,8 @@ static void usage(void) {
 #else
 #define LOG(...)
 #endif
+
+#define APPDEL ((AppDelegate*)[[NSApplication sharedApplication] delegate])
 
 static NSString* fileExtension(NSString *path) {
     return [[path pathExtension] lowercaseString];
@@ -151,8 +160,10 @@ static NSString* resolvePath(NSString *path) {
     BOOL fileError;
     NSTimer *errorUpdate;
 }
+-(void)loadImageRestart:(NSString*)path;
 -(void)previousImage;
 -(void)nextImage;
+-(NSString*)currentDirectory;
 @end
 
 @implementation AppSubView
@@ -171,8 +182,6 @@ static NSString* resolvePath(NSString *path) {
 -(void)keyUp:(NSEvent*)event {
 #define WINDOW [self window]
 #define VIEW ((AppView*)[self superview])
-#define DELEGATE ((AppDelegate*)[[self window] delegate])
-    
     switch ([event keyCode]) {
         case 0x35: // ESC
         case 0x0C: // Q
@@ -188,10 +197,40 @@ static NSString* resolvePath(NSString *path) {
         case 0x28: // K
             [VIEW nextImage];
             break;
+        case 0x1f: { // O
+            NSArray *files = openDialog([VIEW currentDirectory]);
+            if (!files || ![files count])
+                break;
+            [VIEW loadImageRestart:files[0]];
+            for (int i = 1; i < [files count]; i++)
+                if (![APPDEL createNewWindow:files[i]])
+                    WARN("Failed to load \"%@\"", files[i]);
+            break;
+        }
         default:
             LOG("Unrecognized key: 0x%x", [event keyCode]);
             break;
     }
+#undef WINDOW
+#undef VIEW
+}
+
+-(void)mouseDown:(NSEvent *)theEvent {
+  NSRect windowFrame = [[self window] frame];
+  dragPoint = [NSEvent mouseLocation];
+  dragPoint.x -= windowFrame.origin.x;
+  dragPoint.y -= windowFrame.origin.y;
+}
+
+-(void)mouseDragged:(NSEvent *)theEvent {
+  NSRect  screenFrame = [[NSScreen mainScreen] frame];
+  NSRect  windowFrame = [self frame];
+  NSPoint currentPoint = [NSEvent mouseLocation];
+  NSPoint newOrigin = NSMakePoint(currentPoint.x - dragPoint.x,
+                                  currentPoint.y - dragPoint.y);
+  if ((newOrigin.y + windowFrame.size.height) > (screenFrame.origin.y + screenFrame.size.height))
+      newOrigin.y = screenFrame.origin.y + (screenFrame.size.height - windowFrame.size.height);
+  [[self window] setFrameOrigin:newOrigin];
 }
 @end
 
@@ -339,6 +378,10 @@ static NSString* resolvePath(NSString *path) {
     [self setImageIdx:fileIdx + 1];
 }
 
+-(NSString*)currentDirectory {
+    return dir;
+}
+
 -(void)forceResize {
     NSRect frame = [[self window] frame];
     frame.size = [image size];
@@ -348,6 +391,39 @@ static NSString* resolvePath(NSString *path) {
     [subView setFrame:NSMakeRect(0.f, 0.f, frame.size.width, frame.size.height)];
     [self setNeedsDisplay:YES];
 }
+
+-(void)loadImageRestart:(NSString*)path {
+    NSArray *dirParts = [path pathComponents];
+    dir = [NSString pathWithComponents:[dirParts subarrayWithRange:(NSRange){ 0, [dirParts count] - 1}]];
+    file = dirParts[[dirParts count] - 1];
+    [self updateFilesList];
+    fileError = ![self loadImage:path];
+}
+
+// TODO: NSFilenamesPboardType deprecated for NSPasteboardTypeFileURL or kUTTypeFileURL
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+-(NSDragOperation)draggingEntered:(id <NSDraggingInfo>)sender {
+    if ([[[sender draggingPasteboard] types] containsObject:NSFilenamesPboardType])
+        return [sender draggingSourceOperationMask] & NSDragOperationLink ? NSDragOperationLink : NSDragOperationCopy;
+    return NSDragOperationNone;
+}
+
+-(BOOL)performDragOperation:(id <NSDraggingInfo>)sender {
+    NSPasteboard *pboard = [sender draggingPasteboard];
+    if (![[pboard types] containsObject:NSFilenamesPboardType] || !([sender draggingSourceOperationMask] & NSDragOperationLink))
+        return NO;
+    NSArray *links = [pboard propertyListForType:NSFilenamesPboardType];
+    if (!links || ![links count])
+        return NO;
+    
+    [self loadImageRestart:links[0]];
+    for (int i = 1; i < [links count]; i++)
+        if (![APPDEL createNewWindow:links[i]])
+            WARN("Failed to load \"%@\"", links[i]);
+    return YES;
+}
+#pragma clang diagnostic pop
 
 -(void)enableErrorImage {
     fileError = YES;
@@ -419,7 +495,12 @@ static NSString* resolvePath(NSString *path) {
     [[window standardWindowButton:NSWindowZoomButton] setHidden:YES];
     [[window standardWindowButton:NSWindowCloseButton] setHidden:YES];
     [[window standardWindowButton:NSWindowMiniaturizeButton] setHidden:YES];
-    
+    [window setReleasedWhenClosed:NO];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(windowWillClose:)
+                                                 name:NSWindowWillCloseNotification
+                                               object:window];
+ 
     id view = [AppView alloc];
     if (![view initWithFrame:NSZeroRect
                    imagePath:path]) {
@@ -467,6 +548,10 @@ static NSString* resolvePath(NSString *path) {
 -(BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication*)app {
     (void)app;
     return YES;
+}
+
+-(void)windowWillClose:(NSNotification*)notification {
+    [windows removeObject:[notification object]];
 }
 @end
 
