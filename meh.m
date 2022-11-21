@@ -72,7 +72,7 @@ static struct option long_options[] = {
 static void usage(void) {
     puts("usage: meh [files...] [options]");
     puts("\n\nArguments:");
-    puts("\t-s/--sort\tSpecify file list sort\t\t[default: alphabetic]");
+    puts("\t-s/--sort\tSpecify file list sort\t[default: alphabetic]");
     printf("\t* Sorting options: ");
 #define X(S, _) S,
     const char *sortingOptions[] = { SORT_TYPES NULL };
@@ -93,10 +93,15 @@ static void usage(void) {
     puts("\t- K/Arrow Right/Arrow Up -- Next image");
     puts("\t- O -- Open file dialog");
     puts("\t- S -- Toggle slideshow");
-    printf("\nFile types: ");
+    printf("\nFile types:\n\t* ");
     for (int i = 0; i < [validExtensions count]; i++)
         printf("%s%s", [validExtensions[i] UTF8String], i == [validExtensions count] - 1 ? "\n" : ", ");
 }
+#define USAGE(N)  \
+    do {          \
+        usage();  \
+        return N; \
+    } while(0)
 
 #if defined(DEBUG)
 #define LOG(fmt, ...) NSLog(@"DEBUG: " fmt, __VA_ARGS__)
@@ -631,8 +636,7 @@ int main(int argc, char *argv[]) {
                 SORT_TYPES
 #undef X
                 printf("ERROR! Invalid sort argument \"%s\"\n", optarg);
-                usage();
-                return EXIT_FAILURE;
+                USAGE(EXIT_FAILURE);
             }
             case 'r':
                 settingReverseSort = YES;
@@ -643,8 +647,7 @@ int main(int argc, char *argv[]) {
                     settingsSlideshowDelay = 5.0;
                 break;
             case 'h':
-                usage();
-                return EXIT_SUCCESS;
+                USAGE(EXIT_SUCCESS);
             case 'S':
                 settingsSlideshow = YES;
                 settingsSlideshowDelay = CLAMP(atof(optarg), 0, 60.);
@@ -664,15 +667,12 @@ int main(int argc, char *argv[]) {
                         break;
                     default:
                         printf("ERROR: \"-%c\" requires an value!\n", optopt);
-                        usage();
-                        return EXIT_FAILURE;
+                        USAGE(EXIT_FAILURE);
                 }
                 break;
             case '?':
                 printf("ERROR: Unknown argument \"-%c\"\n", optopt);
-                usage();
-                return EXIT_FAILURE;
-
+                USAGE(EXIT_FAILURE);
         }
     }
     

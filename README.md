@@ -31,6 +31,10 @@ Keys:
 File types: pdf, eps, epi, epsf, epsi, ps, tiff, tif, jpg, jpeg, jpe, gif, png, pict, pct, pic, bmp, bmpf, ico, icns, dng, cr2, crw, fpx, fpix, raf, dcr, ptng, pnt, mac, mrw, nef, orf, exr, psd, qti, qtif, hdr, sgi, srf, targa, tga, cur, xbm
 ```
 
+## Build
+
+Run ```make``` to build the regular cli version, or to build the app version run ```make app``` or ```make install```. Alternatively, build the xcodeproj with [xcodegen](https://github.com/yonaskolb/XcodeGen).
+
 ## TODO
 
 - [X] ~~Image cycling~~
@@ -44,7 +48,7 @@ File types: pdf, eps, epi, epsf, epsi, ps, tiff, tif, jpg, jpeg, jpe, gif, png, 
 - [ ] Zooming
 - [ ] Archive support
 - [ ] Load images from URL
-- [ ] Finish Makefile + README
+- [X] ~~Finish Makefile + README~~
 
 ## License
 ```
