@@ -41,6 +41,10 @@ typedef enum {
 
 static FileSortType settingSortBy = SORT_ALPHABETIC;
 static BOOL settingReverseSort = NO;
+static BOOL settingsSlideshow = NO;
+static double settingsSlideshowDelay = 5.0;
+static BOOL settingsSlideshowReverse = NO;
+static BOOL settingsQuitAtEnd = NO;
 
 static NSArray *validExtensions = @[@"pdf",   @"eps",  @"epi",  @"epsf",
                                     @"epsi",  @"ps",   @"tiff", @"tif",
@@ -57,6 +61,10 @@ static NSArray *validExtensions = @[@"pdf",   @"eps",  @"epi",  @"epsf",
 static struct option long_options[] = {
     {"sort", required_argument, NULL, 's'},
     {"reverse", no_argument, NULL, 'r'},
+    {"slideshow", optional_argument, NULL, 'S'},
+    {"slideshow-delay", required_argument, NULL, 'd'},
+    {"slideshow-reverse", no_argument, NULL, 'R'},
+    {"quit", no_argument, NULL, 'q'},
     {"help", no_argument, NULL, 'h'},
     {NULL, 0, NULL, 0}
 };
@@ -64,7 +72,7 @@ static struct option long_options[] = {
 static void usage(void) {
     puts("usage: meh [files...] [options]");
     puts("\n\nArguments:");
-    puts("\t-s/--sort\tSpecify file list sort\t[default: alphabetic]");
+    puts("\t-s/--sort\tSpecify file list sort\t\t[default: alphabetic]");
     printf("\t* Sorting options: ");
 #define X(S, _) S,
     const char *sortingOptions[] = { SORT_TYPES NULL };
@@ -73,6 +81,10 @@ static void usage(void) {
     for (int i = 0; i < sizeOfSortingOptions; i++)
         printf("%s%s", sortingOptions[i], i == sizeOfSortingOptions - 1 ? "\n" : ", ");
     puts("\t-r/--reverse\tEnable reversed sorting");
+    puts("\t-S/--slideshow\tEnable slideshow mode");
+    puts("\t-d/--slideshow-delay\tSet slideshow delay\t[.1-60, default delay: 5 seconds]");
+    puts("\t-R/--slideshow-reverse\tEnable slideshow reverse order");
+    puts("\t-q/--quit\tClose window when last image reached");
     puts("\t-h/--help\tPrint this message");
     puts("\nKeys:");
     puts("\t- CMD+Q -- Quit applications");
@@ -80,6 +92,7 @@ static void usage(void) {
     puts("\t- J/Arrow Left/Arrow Down -- Previous image");
     puts("\t- K/Arrow Right/Arrow Up -- Next image");
     puts("\t- O -- Open file dialog");
+    puts("\t- S -- Toggle slideshow");
     printf("\nFile types: ");
     for (int i = 0; i < [validExtensions count]; i++)
         printf("%s%s", [validExtensions[i] UTF8String], i == [validExtensions count] - 1 ? "\n" : ", ");
@@ -89,6 +102,16 @@ static void usage(void) {
 #define LOG(fmt, ...) NSLog(@"DEBUG: " fmt, __VA_ARGS__)
 #else
 #define LOG(...)
+#endif
+
+#if !defined(MIN)
+#define MIN(a, b) (a < b ? a : b)
+#endif
+#if !defined(MAX)
+#define MAX(a, b) (a > b ? a : b)
+#endif
+#if !defined(CLAMP)
+#define CLAMP(n, min, max) (MIN(MAX(n, min), max))
 #endif
 
 #define APPDEL ((AppDelegate*)[[NSApplication sharedApplication] delegate])
@@ -158,8 +181,10 @@ static NSString* resolvePath(NSString *path) {
     NSMutableArray *files;
     NSInteger fileIdx;
     BOOL fileError;
-    NSTimer *errorUpdate;
+    BOOL slideshowEnabled;
+    NSTimer *errorUpdate, *slideshowUpdate;
 }
+-(void)toggleSlideshow;
 -(void)loadImageRestart:(NSString*)path;
 -(void)previousImage;
 -(void)nextImage;
@@ -207,6 +232,9 @@ static NSString* resolvePath(NSString *path) {
                     WARN("Failed to load \"%@\"", files[i]);
             break;
         }
+        case 0x1:
+            [VIEW toggleSlideshow];
+            break;
         default:
             LOG("Unrecognized key: 0x%x", [event keyCode]);
             break;
@@ -249,11 +277,36 @@ static NSString* resolvePath(NSString *path) {
         if (![self loadImage:path])
             return nil;
         
+        slideshowEnabled = NO;
+        if (settingsSlideshow)
+            [self toggleSlideshow];
+        
         [self setAnimates:YES];
         [self setCanDrawSubviewsIntoLayer:YES];
         [self setImageScaling:NSImageScaleAxesIndependently];
     }
     return self;
+}
+
+-(void)updateSlideshow {
+    if (settingsSlideshowReverse)
+        [self previousImage];
+    else
+        [self nextImage];
+}
+
+-(void)toggleSlideshow {
+    if (!slideshowEnabled) {
+        slideshowEnabled = YES;
+        slideshowUpdate = [NSTimer scheduledTimerWithTimeInterval:settingsSlideshowDelay
+                                                           target:self
+                                                         selector:@selector(updateSlideshow)
+                                                         userInfo:nil
+                                                          repeats:YES];
+    } else {
+        slideshowEnabled = NO;
+        [slideshowUpdate invalidate];
+    }
 }
 
 -(void)updateFilesList {
@@ -357,10 +410,16 @@ static NSString* resolvePath(NSString *path) {
 }
 
 -(void)setImageIdx:(NSInteger)idx {
-    if (idx < 0)
+    if (idx < 0) {
+        if (settingsQuitAtEnd)
+            [[self window] close];
         idx = [files count] - 1;
-    if (idx >= [files count])
+    }
+    if (idx >= [files count]) {
+        if (settingsQuitAtEnd)
+            [[self window] close];
         idx = 0;
+    }
     fileIdx = idx;
     NSString *path = [NSString stringWithFormat:@"%@/%@", dir, files[fileIdx]];
     fileError = ![self loadImage:path];
@@ -531,7 +590,7 @@ static NSString* resolvePath(NSString *path) {
         [appMenu addItem:quitMenuItem];
         [appMenuItem setSubmenu:appMenu];
         
-        if (!paths)
+        if (!paths || ![paths count])
             paths = openDialog(nil);
         if (!paths)
             return nil;
@@ -560,7 +619,7 @@ int main(int argc, char *argv[]) {
     extern int optind;
     extern char* optarg;
     extern int optopt;
-    while ((opt = getopt_long(argc, argv, "hrs:", long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, ":hrs:d:S:Rq", long_options, NULL)) != -1) {
         switch (opt) {
             case 's': {
                 NSString *sort = [@(optarg) lowercaseString];
@@ -578,13 +637,37 @@ int main(int argc, char *argv[]) {
             case 'r':
                 settingReverseSort = YES;
                 break;
+            case 'd':
+                settingsSlideshowDelay = CLAMP(atof(optarg), 0, 60.);
+                if (settingsSlideshowDelay == 0)
+                    settingsSlideshowDelay = 5.0;
+                break;
             case 'h':
                 usage();
                 return EXIT_SUCCESS;
+            case 'S':
+                settingsSlideshow = YES;
+                settingsSlideshowDelay = CLAMP(atof(optarg), 0, 60.);
+                if (settingsSlideshowDelay == 0)
+                    settingsSlideshowDelay = 5.0;
+                break;
+            case 'R':
+                settingsSlideshowReverse = YES;
+                break;
+            case 'q':
+                settingsQuitAtEnd = YES;
+                break;
             case ':':
-                printf("ERROR: \"-%c\" requires an value!\n", optopt);
-                usage();
-                return EXIT_FAILURE;
+                switch (optopt) {
+                    case 'S':
+                        settingsSlideshow = YES;
+                        break;
+                    default:
+                        printf("ERROR: \"-%c\" requires an value!\n", optopt);
+                        usage();
+                        return EXIT_FAILURE;
+                }
+                break;
             case '?':
                 printf("ERROR: Unknown argument \"-%c\"\n", optopt);
                 usage();

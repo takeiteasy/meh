@@ -11,9 +11,13 @@ usage: meh [files...] [options]
 
 
 Arguments:
-    -s/--sort    Specify file list sort    [default: alphabetic]
+    -s/--sort    Specify file list sort        [default: alphabetic]
     * Sorting options: alphabetic, fsize, mtime, ctime, format, random
     -r/--reverse    Enable reversed sorting
+    -S/--slideshow    Enable slideshow mode
+    -d/--slideshow-delay    Set slideshow delay    [.1-60, default delay: 5 seconds]
+    -R/--slideshow-reverse    Enable slideshow reverse order
+    -q/--quit    Close window when last image reached
     -h/--help    Print this message
 
 Keys:
@@ -22,6 +26,7 @@ Keys:
     - J/Arrow Left/Arrow Down -- Previous image
     - K/Arrow Right/Arrow Up -- Next image
     - O -- Open file dialog
+    - S -- Toggle slideshow
 
 File types: pdf, eps, epi, epsf, epsi, ps, tiff, tif, jpg, jpeg, jpe, gif, png, pict, pct, pic, bmp, bmpf, ico, icns, dng, cr2, crw, fpx, fpix, raf, dcr, ptng, pnt, mac, mrw, nef, orf, exr, psd, qti, qtif, hdr, sgi, srf, targa, tga, cur, xbm
 ```
