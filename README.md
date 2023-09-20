@@ -9,26 +9,27 @@
 ```
 usage: meh [files...] [options]
 
+  Arguments:
+    * -s/--sort -- Specify file list sort [default: alphabetic]
+      * options: alphabetic, fsize, mtime, ctime, format, random
+    * -r/--reverse -- Enable reversed sorting
+    * -S/--slideshow -- Enable slideshow mode
+    * -d/--slideshow-delay -- Set slideshow delay [.1-60, default delay: 5 seconds]
+    * -R/--slideshow-reverse -- Enable slideshow reverse order
+    * -A/--disable-animations -- Disable resizing animation for windows [warning: slow]
+    * -q/--quit -- Close window when last image reached
+    * -h/--help -- Print this message
 
-Arguments:
-    -s/--sort    Specify file list sort        [default: alphabetic]
-    * Sorting options: alphabetic, fsize, mtime, ctime, format, random
-    -r/--reverse    Enable reversed sorting
-    -S/--slideshow    Enable slideshow mode
-    -d/--slideshow-delay    Set slideshow delay    [.1-60, default delay: 5 seconds]
-    -R/--slideshow-reverse    Enable slideshow reverse order
-    -q/--quit    Close window when last image reached
-    -h/--help    Print this message
+  Keys:
+    * CMD+Q -- Quit applications
+    * ESC/Q -- Close window
+    * J/Arrow Left/Arrow Down -- Previous image
+    * K/Arrow Right/Arrow Up -- Next image
+    * O -- Open file dialog
+    * S -- Toggle slideshow
 
-Keys:
-    - CMD+Q -- Quit applications
-    - ESC/Q -- Close window
-    - J/Arrow Left/Arrow Down -- Previous image
-    - K/Arrow Right/Arrow Up -- Next image
-    - O -- Open file dialog
-    - S -- Toggle slideshow
-
-File types: pdf, eps, epi, epsf, epsi, ps, tiff, tif, jpg, jpeg, jpe, gif, png, pict, pct, pic, bmp, bmpf, ico, icns, dng, cr2, crw, fpx, fpix, raf, dcr, ptng, pnt, mac, mrw, nef, orf, exr, psd, qti, qtif, hdr, sgi, srf, targa, tga, cur, xbm
+  File types:
+    * pdf, eps, epi, epsf, epsi, ps, tiff, tif, jpg, jpeg, jpe, gif, png, pict, pct, pic, bmp, bmpf, ico, icns, dng, cr2, crw, fpx, fpix, raf, dcr, ptng, pnt, mac, mrw, nef, orf, exr, psd, qti, qtif, hdr, sgi, srf, targa, tga, cur, xbm
 ```
 
 ## Build
@@ -37,18 +38,9 @@ Run ```make``` to build the regular cli version, or to build the app version run
 
 ## TODO
 
-- [X] ~~Image cycling~~
-- [X] ~~File list sorting~~
-- [X] ~~CLI Arguments~~
-- [X] ~~Error handling~~
-- [X] ~~Drag + drop~~
-- [X] ~~Slideshow mode~~
-- [ ] Clamp window size to screen size
 - [ ] Touch controls
-- [ ] Zooming
 - [ ] Archive support
 - [ ] Load images from URL
-- [X] ~~Finish Makefile + README~~
 
 ## License
 ```

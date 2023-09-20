@@ -45,6 +45,7 @@ static BOOL settingsSlideshow = NO;
 static double settingsSlideshowDelay = 5.0;
 static BOOL settingsSlideshowReverse = NO;
 static BOOL settingsQuitAtEnd = NO;
+static BOOL enableResizeAnimations = YES;
 
 static NSArray *validExtensions = @[@"pdf",   @"eps",  @"epi",  @"epsf",
                                     @"epsi",  @"ps",   @"tiff", @"tif",
@@ -64,6 +65,7 @@ static struct option long_options[] = {
     {"slideshow", optional_argument, NULL, 'S'},
     {"slideshow-delay", required_argument, NULL, 'd'},
     {"slideshow-reverse", no_argument, NULL, 'R'},
+    {"disable-animations", no_argument, NULL, 'A'},
     {"quit", no_argument, NULL, 'q'},
     {"help", no_argument, NULL, 'h'},
     {NULL, 0, NULL, 0}
@@ -71,29 +73,34 @@ static struct option long_options[] = {
 
 static void usage(void) {
     puts("usage: meh [files...] [options]");
-    puts("\n\nArguments:");
-    puts("\t-s/--sort\tSpecify file list sort\t[default: alphabetic]");
-    printf("\t* Sorting options: ");
+    puts("");
+    puts("  Arguments:");
+    puts("    * -s/--sort -- Specify file list sort [default: alphabetic]");
+    printf("      * options: ");
 #define X(S, _) S,
     const char *sortingOptions[] = { SORT_TYPES NULL };
 #undef X
     int sizeOfSortingOptions = (sizeof(sortingOptions) / sizeof(const char*)) - 1;
     for (int i = 0; i < sizeOfSortingOptions; i++)
         printf("%s%s", sortingOptions[i], i == sizeOfSortingOptions - 1 ? "\n" : ", ");
-    puts("\t-r/--reverse\tEnable reversed sorting");
-    puts("\t-S/--slideshow\tEnable slideshow mode");
-    puts("\t-d/--slideshow-delay\tSet slideshow delay\t[.1-60, default delay: 5 seconds]");
-    puts("\t-R/--slideshow-reverse\tEnable slideshow reverse order");
-    puts("\t-q/--quit\tClose window when last image reached");
-    puts("\t-h/--help\tPrint this message");
-    puts("\nKeys:");
-    puts("\t- CMD+Q -- Quit applications");
-    puts("\t- ESC/Q -- Close window");
-    puts("\t- J/Arrow Left/Arrow Down -- Previous image");
-    puts("\t- K/Arrow Right/Arrow Up -- Next image");
-    puts("\t- O -- Open file dialog");
-    puts("\t- S -- Toggle slideshow");
-    printf("\nFile types:\n\t* ");
+    puts("    * -r/--reverse -- Enable reversed sorting");
+    puts("    * -S/--slideshow -- Enable slideshow mode");
+    puts("    * -d/--slideshow-delay -- Set slideshow delay [.1-60, default delay: 5 seconds]");
+    puts("    * -R/--slideshow-reverse -- Enable slideshow reverse order");
+    puts("    * -A/--disable-animations -- Disable resizing animation for windows [warning: slow]");
+    puts("    * -q/--quit -- Close window when last image reached");
+    puts("    * -h/--help -- Print this message");
+    puts("");
+    puts("  Keys:");
+    puts("    * CMD+Q -- Quit applications");
+    puts("    * ESC/Q -- Close window");
+    puts("    * J/Arrow Left/Arrow Down -- Previous image");
+    puts("    * K/Arrow Right/Arrow Up -- Next image");
+    puts("    * O -- Open file dialog");
+    puts("    * S -- Toggle slideshow");
+    puts("");
+    puts("  File types:");
+    printf("    * ");
     for (int i = 0; i < [validExtensions count]; i++)
         printf("%s%s", [validExtensions[i] UTF8String], i == [validExtensions count] - 1 ? "\n" : ", ");
 }
@@ -118,8 +125,6 @@ static void usage(void) {
 #if !defined(CLAMP)
 #define CLAMP(n, min, max) (MIN(MAX(n, min), max))
 #endif
-
-#define APPDEL ((AppDelegate*)[[NSApplication sharedApplication] delegate])
 
 static NSString* fileExtension(NSString *path) {
     return [[path pathExtension] lowercaseString];
@@ -171,7 +176,7 @@ static NSString* resolvePath(NSString *path) {
 @interface AppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate> {
     NSMutableArray *windows;
 }
--(BOOL)createNewWindow:(NSString*)path;
+- (BOOL)createNewWindow:(NSString*)path;
 @end
 
 @interface AppSubView : NSView {
@@ -189,73 +194,70 @@ static NSString* resolvePath(NSString *path) {
     BOOL slideshowEnabled;
     NSTimer *errorUpdate, *slideshowUpdate;
 }
--(void)toggleSlideshow;
--(void)loadImageRestart:(NSString*)path;
--(void)previousImage;
--(void)nextImage;
--(NSString*)currentDirectory;
+- (void)toggleSlideshow;
+- (void)loadImageRestart:(NSString*)path;
+- (void)previousImage;
+- (void)nextImage;
+- (NSString*)currentDirectory;
 @end
 
 @implementation AppSubView
--(id)initWithFrame:(NSRect)frame {
+- (id)initWithFrame:(NSRect)frame {
     return [super initWithFrame:frame];
 }
 
--(BOOL)acceptsFirstResponder {
+- (BOOL)acceptsFirstResponder {
     return YES;
 }
 
--(void)keyDown:(NSEvent*)event {
+- (void)keyDown:(NSEvent*)event {
     (void)event;
 }
 
--(void)keyUp:(NSEvent*)event {
-#define WINDOW [self window]
-#define VIEW ((AppView*)[self superview])
+- (void)keyUp:(NSEvent*)event {
     switch ([event keyCode]) {
         case 0x35: // ESC
         case 0x0C: // Q
-            [WINDOW close];
+            [[self window] close];
             break;
         case 0x7b: // Arrow key left
         case 0x7d: // Arrow key down
         case 0x26: // J
-            [VIEW previousImage];
+            [(AppView*)[self superview] previousImage];
             break;
         case 0x7e: // Arrow key up
         case 0x7c: // Arrow key right
         case 0x28: // K
-            [VIEW nextImage];
+            [(AppView*)[self superview] nextImage];
             break;
         case 0x1f: { // O
-            NSArray *files = openDialog([VIEW currentDirectory]);
+            AppView *view = (AppView*)[self superview];
+            NSArray *files = openDialog([view currentDirectory]);
             if (!files || ![files count])
                 break;
-            [VIEW loadImageRestart:files[0]];
+            [view loadImageRestart:files[0]];
             for (int i = 1; i < [files count]; i++)
-                if (![APPDEL createNewWindow:files[i]])
+                if (![(AppDelegate*)[[NSApplication sharedApplication] delegate] createNewWindow:files[i]])
                     WARN("Failed to load \"%@\"", files[i]);
             break;
         }
         case 0x1:
-            [VIEW toggleSlideshow];
+            [(AppView*)[self superview] toggleSlideshow];
             break;
         default:
             LOG("Unrecognized key: 0x%x", [event keyCode]);
             break;
     }
-#undef WINDOW
-#undef VIEW
 }
 
--(void)mouseDown:(NSEvent *)theEvent {
+- (void)mouseDown:(NSEvent *)theEvent {
   NSRect windowFrame = [[self window] frame];
   dragPoint = [NSEvent mouseLocation];
   dragPoint.x -= windowFrame.origin.x;
   dragPoint.y -= windowFrame.origin.y;
 }
 
--(void)mouseDragged:(NSEvent *)theEvent {
+- (void)mouseDragged:(NSEvent *)theEvent {
   NSRect  screenFrame = [[NSScreen mainScreen] frame];
   NSRect  windowFrame = [self frame];
   NSPoint currentPoint = [NSEvent mouseLocation];
@@ -268,7 +270,7 @@ static NSString* resolvePath(NSString *path) {
 @end
 
 @implementation AppView
--(id)initWithFrame:(NSRect)frame imagePath:(NSString*)path {
+- (id)initWithFrame:(NSRect)frame imagePath:(NSString*)path {
     if (self = [super initWithFrame:frame]) {
         subView = [[AppSubView alloc] initWithFrame:frame];
         [self addSubview:subView];
@@ -286,21 +288,21 @@ static NSString* resolvePath(NSString *path) {
         if (settingsSlideshow)
             [self toggleSlideshow];
         
-        [self setAnimates:YES];
+        [self setAnimates:enableResizeAnimations];
         [self setCanDrawSubviewsIntoLayer:YES];
         [self setImageScaling:NSImageScaleAxesIndependently];
     }
     return self;
 }
 
--(void)updateSlideshow {
+- (void)updateSlideshow {
     if (settingsSlideshowReverse)
         [self previousImage];
     else
         [self nextImage];
 }
 
--(void)toggleSlideshow {
+- (void)toggleSlideshow {
     if (!slideshowEnabled) {
         slideshowEnabled = YES;
         slideshowUpdate = [NSTimer scheduledTimerWithTimeInterval:settingsSlideshowDelay
@@ -314,7 +316,7 @@ static NSString* resolvePath(NSString *path) {
     }
 }
 
--(void)updateFilesList {
+- (void)updateFilesList {
     static NSArray<NSURLResourceKey> *key = nil;
     static NSString *descKey = nil;
     if (!key)
@@ -396,7 +398,7 @@ static NSString* resolvePath(NSString *path) {
         PANIC("Couldn't file \"%@\" in \"%@\"", file, dir);
 }
 
--(BOOL)checkImage:(NSString*)path {
+- (BOOL)checkImage:(NSString*)path {
     if (![validExtensions containsObject:fileExtension(path)])
         return NO;
     if (![[NSFileManager defaultManager] fileExistsAtPath:path])
@@ -404,17 +406,18 @@ static NSString* resolvePath(NSString *path) {
     return YES;
 }
 
--(BOOL)loadImage:(NSString*)path {
+- (BOOL)loadImage:(NSString*)path {
     if (![self checkImage:path])
         return NO;
     if (!(image = [[NSImage alloc] initWithContentsOfFile:path]))
         return NO;
     [self setImage:image];
-    [self forceResize];
+    [self forceResize:CGSizeMake([image size].width, [image size].height)
+     enableAnimations:enableResizeAnimations];
     return YES;
 }
 
--(void)setImageIdx:(NSInteger)idx {
+- (void)setImageIdx:(NSInteger)idx {
     if (idx < 0) {
         if (settingsQuitAtEnd)
             [[self window] close];
@@ -434,34 +437,37 @@ static NSString* resolvePath(NSString *path) {
     }
 }
 
--(void)previousImage {
+- (void)previousImage {
     [self setImageIdx:fileIdx - 1];
 }
 
--(void)nextImage {
+- (void)nextImage {
     [self setImageIdx:fileIdx + 1];
 }
 
--(NSString*)currentDirectory {
+- (NSString*)currentDirectory {
     return dir;
 }
 
--(void)forceResize {
-    NSRect screenFrame = [[NSScreen mainScreen] frame];
+- (NSSize)currentImageSize {
+    return [image size];
+}
+
+- (void)forceResize:(CGSize)size enableAnimations:(BOOL)enabledAnims {
     NSRect frame = [[self window] frame];
     CGPoint centre = CGPointMake(frame.origin.x + (frame.size.width / 2),
                                  frame.origin.y + (frame.size.height / 2));
-    frame.size = [image size];
+    frame.size = size;
     frame.origin = CGPointMake(centre.x - (frame.size.width / 2),
                                centre.y - (frame.size.height / 2));
     [[self window] setFrame:frame
                     display:YES
-                    animate:YES];
+                    animate:enabledAnims];
     [subView setFrame:NSMakeRect(0.f, 0.f, frame.size.width, frame.size.height)];
     [self setNeedsDisplay:YES];
 }
 
--(void)loadImageRestart:(NSString*)path {
+- (void)loadImageRestart:(NSString*)path {
     NSArray *dirParts = [path pathComponents];
     dir = [NSString pathWithComponents:[dirParts subarrayWithRange:(NSRange){ 0, [dirParts count] - 1}]];
     file = dirParts[[dirParts count] - 1];
@@ -472,13 +478,13 @@ static NSString* resolvePath(NSString *path) {
 // TODO: NSFilenamesPboardType deprecated for NSPasteboardTypeFileURL or kUTTypeFileURL
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
--(NSDragOperation)draggingEntered:(id <NSDraggingInfo>)sender {
+- (NSDragOperation)draggingEntered:(id <NSDraggingInfo>)sender {
     if ([[[sender draggingPasteboard] types] containsObject:NSFilenamesPboardType])
         return [sender draggingSourceOperationMask] & NSDragOperationLink ? NSDragOperationLink : NSDragOperationCopy;
     return NSDragOperationNone;
 }
 
--(BOOL)performDragOperation:(id <NSDraggingInfo>)sender {
+- (BOOL)performDragOperation:(id <NSDraggingInfo>)sender {
     NSPasteboard *pboard = [sender draggingPasteboard];
     if (![[pboard types] containsObject:NSFilenamesPboardType] || !([sender draggingSourceOperationMask] & NSDragOperationLink))
         return NO;
@@ -488,13 +494,21 @@ static NSString* resolvePath(NSString *path) {
     
     [self loadImageRestart:links[0]];
     for (int i = 1; i < [links count]; i++)
-        if (![APPDEL createNewWindow:links[i]])
+        if (![(AppDelegate*)[[NSApplication sharedApplication] delegate] createNewWindow:links[i]])
             WARN("Failed to load \"%@\"", links[i]);
     return YES;
 }
 #pragma clang diagnostic pop
 
--(void)enableErrorImage {
+- (void)magnifyWithEvent:(NSEvent*)event {
+    float zoom = [event magnification] + 1.f;
+    NSSize newSize = NSMakeSize([self frame].size.width * zoom,
+                                [self frame].size.height * zoom);
+    [self forceResize:newSize
+     enableAnimations:NO];
+}
+
+- (void)enableErrorImage {
     fileError = YES;
     errorUpdate = [NSTimer scheduledTimerWithTimeInterval:1.
                                                    target:self
@@ -504,18 +518,18 @@ static NSString* resolvePath(NSString *path) {
     [self setNeedsDisplay:YES];
 }
 
--(void)disableErrorImage {
+- (void)disableErrorImage {
     fileError = NO;
     [errorUpdate invalidate];
 }
 
--(void)updateErrorImage {
+- (void)updateErrorImage {
     if (!fileError)
         [self disableErrorImage];
     [self setNeedsDisplay:YES];
 }
 
--(void)drawRect:(NSRect)dirtyRect {
+- (void)drawRect:(NSRect)dirtyRect {
     if (!fileError) {
         [super drawRect:dirtyRect];
         return;
@@ -540,7 +554,7 @@ static NSString* resolvePath(NSString *path) {
 @end
 
 @implementation AppDelegate : NSObject
--(BOOL)createNewWindow:(NSString*)path {
+- (BOOL)createNewWindow:(NSString*)path {
 #define BAIL(MSG)                                \
     do {                                         \
         NSLog(@"ERROR! %s (\"%@\")", MSG, path); \
@@ -577,14 +591,15 @@ static NSString* resolvePath(NSString *path) {
         return NO;
     }
     [window setContentView:view];
-    [view forceResize];
+    [view forceResize:[view currentImageSize]
+     enableAnimations:enableResizeAnimations];
     
     [windows addObject:window];
     return YES;
 #undef BAIL
 }
 
--(id)initWithPaths:(NSArray*)paths {
+- (id)initWithPaths:(NSArray*)paths {
     if (self = [super init]) {
         windows = [[NSMutableArray alloc] init];
         
@@ -614,12 +629,12 @@ static NSString* resolvePath(NSString *path) {
     return self;
 }
 
--(BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication*)app {
+- (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication*)app {
     (void)app;
     return YES;
 }
 
--(void)windowWillClose:(NSNotification*)notification {
+- (void)windowWillClose:(NSNotification*)notification {
     [windows removeObject:[notification object]];
 }
 @end
@@ -629,15 +644,15 @@ int main(int argc, char *argv[]) {
     extern int optind;
     extern char* optarg;
     extern int optopt;
-    while ((opt = getopt_long(argc, argv, ":hrs:d:S:Rq", long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, ":hrs:d:S:RqA", long_options, NULL)) != -1) {
         switch (opt) {
             case 's': {
                 NSString *sort = [@(optarg) lowercaseString];
-#define X(S, E) \
-                if ([sort isEqualToString:@S]) { \
-                    settingSortBy = SORT_##E; \
-                    break; \
-                }
+#define X(S, E)                  \
+if ([sort isEqualToString:@S]) { \
+    settingSortBy = SORT_##E;    \
+    break;                       \
+}
                 SORT_TYPES
 #undef X
                 printf("ERROR! Invalid sort argument \"%s\"\n", optarg);
@@ -650,6 +665,9 @@ int main(int argc, char *argv[]) {
                 settingsSlideshowDelay = CLAMP(atof(optarg), 0, 60.);
                 if (settingsSlideshowDelay == 0)
                     settingsSlideshowDelay = 5.0;
+                break;
+            case 'A':
+                enableResizeAnimations = NO;
                 break;
             case 'h':
                 USAGE(EXIT_SUCCESS);
