@@ -447,8 +447,13 @@ static NSString* resolvePath(NSString *path) {
 }
 
 -(void)forceResize {
+    NSRect screenFrame = [[NSScreen mainScreen] frame];
     NSRect frame = [[self window] frame];
+    CGPoint centre = CGPointMake(frame.origin.x + (frame.size.width / 2),
+                                 frame.origin.y + (frame.size.height / 2));
     frame.size = [image size];
+    frame.origin = CGPointMake(centre.x - (frame.size.width / 2),
+                               centre.y - (frame.size.height / 2));
     [[self window] setFrame:frame
                     display:YES
                     animate:YES];
