@@ -16,7 +16,7 @@ usage: meh [files...] [options]
     * -S/--slideshow -- Enable slideshow mode
     * -d/--slideshow-delay -- Set slideshow delay [.1-60, default delay: 5 seconds]
     * -R/--slideshow-reverse -- Enable slideshow reverse order
-    * -A/--disable-animations -- Disable resizing animation for windows [warning: slow]
+    * -A/--disable-animations -- Disable resizing animation for windows
     * -q/--quit -- Close window when last image reached
     * -h/--help -- Print this message
 
